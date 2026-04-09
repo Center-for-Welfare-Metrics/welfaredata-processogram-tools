@@ -52,10 +52,10 @@ async function handleFile(file: File): Promise<void> {
   const t0 = performance.now();
   progressContainer.style.display = 'flex';
 
-  setProgress(10, 'Lendo arquivo...');
+  setProgress(10, 'Reading file...');
   svgText = await file.text();
 
-  setProgress(25, 'Extraindo regioes...');
+  setProgress(25, 'Extracting regions...');
   await tick();
   const parsed = parseSvg(svgText);
   regions = parsed.regions;
@@ -89,16 +89,16 @@ async function handleFile(file: File): Promise<void> {
     setTimeout(() => msg.remove(), 8000);
   }
 
-  setProgress(40, 'Carregando imagem SVG...');
+  setProgress(40, 'Loading SVG image...');
   await tick();
   svgImage = await loadSvgImage(svgText);
 
-  setProgress(55, 'Rasterizando low tier...');
+  setProgress(55, 'Rasterizing low tier...');
   await tick();
   rasterizerConfig = { svgText, svgImage, svgWidth, svgHeight, regions };
   rasterCache = await buildRasterCache(rasterizerConfig);
 
-  setProgress(70, 'Construindo hit-map pixel-perfect...');
+  setProgress(70, 'Building pixel-perfect hit-map...');
   await tick();
   hitmap = new HitMap();
   await hitmap.build(svgText, regions, svgWidth, svgHeight);
@@ -114,7 +114,7 @@ async function handleFile(file: File): Promise<void> {
     svgHeight,
   };
 
-  setProgress(85, 'Inicializando canvas...');
+  setProgress(85, 'Initializing canvas...');
   await tick();
   setupCanvas();
 
@@ -140,7 +140,7 @@ async function handleFile(file: File): Promise<void> {
     onDrillDown, onDrillUp, onReset, onNeedsRedrawCb
   );
 
-  setProgress(100, 'Pronto!');
+  setProgress(100, 'Done!');
   const loadTime = performance.now() - t0;
 
   await tick();

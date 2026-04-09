@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -179,21 +179,21 @@
   <div id="upload-phase">
     <div id="drop-zone">
       <div class="icon">&#x2B06;</div>
-      <div class="label">Arraste um arquivo SVG aqui</div>
-      <div class="sublabel">ou clique para selecionar</div>
+      <div class="label">Drag an SVG file here</div>
+      <div class="sublabel">or click to select</div>
     </div>
     <input type="file" id="file-input" accept=".svg" />
     <div id="progress-container">
       <div id="progress-bar-bg">
         <div id="progress-bar-fill"></div>
       </div>
-      <div id="progress-label">Preparando...</div>
+      <div id="progress-label">Preparing...</div>
     </div>
   </div>
 
   <div id="canvas-phase">
     <canvas id="main-canvas"></canvas>
-    <button id="switch-btn">&#x21C4; Trocar arquivo</button>
+    <button id="switch-btn">&#x21C4; Switch file</button>
     <div id="hud">
       <div class="hud-row"><span class="hud-key">FPS</span><span class="hud-val" id="hud-fps">--</span></div>
       <div class="hud-row"><span class="hud-key">Level</span><span class="hud-val" id="hud-level">root</span></div>

@@ -1,0 +1,151 @@
+import type { Region, RasterCache, DynamicTile, BBox } from './types';
+import { MAX_CANVAS_DIM } from './types';
+
+export interface RasterizerConfig {
+  svgText: string;
+  svgImage: HTMLImageElement;
+  svgWidth: number;
+  svgHeight: number;
+  regions: Map<string, Region>;
+}
+
+export async function buildRasterCache(config: RasterizerConfig): Promise<RasterCache> {
+  const { svgImage, svgWidth, svgHeight } = config;
+  const maxDim = Math.max(svgWidth, svgHeight);
+
+  const buildTier = (mult: number): HTMLCanvasElement => {
+    let m = mult;
+    if (maxDim * m > MAX_CANVAS_DIM) {
+      m = Math.floor(MAX_CANVAS_DIM / maxDim);
+    }
+    if (m < 1) m = 1;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(svgWidth * m);
+    canvas.height = Math.round(svgHeight * m);
+    const ctx = canvas.getContext('2d', { alpha: false })!;
+    ctx.scale(m, m);
+    ctx.drawImage(svgImage, 0, 0, svgWidth, svgHeight);
+    return canvas;
+  };
+
+  const low = buildTier(1);
+  const mid = buildTier(4);
+
+  return { low, mid };
+}
+
+function extractGroup(svgText: string, regionId: string): string | null {
+  const escapedId = regionId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Localizar a tag de abertura <g com o ID exato
+  const openTagRegex = new RegExp(`<g\\b[^>]*\\bid="${escapedId}"[^>]*>`);
+  const match = openTagRegex.exec(svgText);
+  if (!match) return null;
+
+  const startIndex = match.index;
+  let i = match.index + match[0].length;
+  let depth = 1;
+
+  // Regex para tags <g reais — \b garante que é exatamente <g, não <glyph etc
+  // Captura tanto <g ...> quanto <g> mas nunca </g> ou <glyph>
+  const openTag  = /<g\b[^>]*>/g;
+  const closeTag = /<\/g>/g;
+
+  while (depth > 0 && i < svgText.length) {
+    // Avançar as regex para a posição atual
+    openTag.lastIndex  = i;
+    closeTag.lastIndex = i;
+
+    const nextOpen  = openTag.exec(svgText);
+    const nextClose = closeTag.exec(svgText);
+
+    if (!nextClose) break; // SVG malformado
+
+    if (nextOpen && nextOpen.index < nextClose.index) {
+      // Próxima tag encontrada é uma abertura — aumentar profundidade
+      depth++;
+      i = nextOpen.index + nextOpen[0].length;
+    } else {
+      // Próxima tag encontrada é um fechamento — diminuir profundidade
+      depth--;
+      i = nextClose.index + nextClose[0].length;
+    }
+  }
+
+  if (depth !== 0) return null; // Grupo não fechado corretamente
+
+  return svgText.substring(startIndex, i);
+}
+
+function extractDefs(svgText: string): string {
+  const defsMatch = svgText.match(/<defs[\s\S]*?<\/defs>/);
+  const styleMatch = svgText.match(/<style[\s\S]*?<\/style>/);
+  return [defsMatch?.[0] ?? '', styleMatch?.[0] ?? ''].join('\n');
+}
+
+export async function buildDynamicTile(
+  regionId: string,
+  config: RasterizerConfig,
+  cache: Map<string, DynamicTile>
+): Promise<DynamicTile | null> {
+  if (cache.has(regionId)) return cache.get(regionId)!;
+
+  const region = config.regions.get(regionId);
+  if (!region) return null;
+
+  const bbox: BBox = region.bbox;
+  const padding = region.strokePadding ?? 15;
+  const groupContent = extractGroup(config.svgText, regionId);
+  if (!groupContent) return null;
+
+  const extractedDefs = extractDefs(config.svgText);
+
+  const viewBoxX = bbox.x - padding;
+  const viewBoxY = bbox.y - padding;
+  const viewBoxW = bbox.width  + padding * 2;
+  const viewBoxH = bbox.height + padding * 2;
+
+  const minimalSvg = `<svg
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    viewBox="${viewBoxX} ${viewBoxY} ${viewBoxW} ${viewBoxH}"
+    width="${viewBoxW}"
+    height="${viewBoxH}"
+  >
+    ${extractedDefs}
+    ${groupContent}
+  </svg>`;
+
+  let tileScale = Math.min(1920 / viewBoxW, 1080 / viewBoxH);
+  if (viewBoxW * tileScale > MAX_CANVAS_DIM) {
+    tileScale = MAX_CANVAS_DIM / viewBoxW;
+  }
+  if (viewBoxH * tileScale > MAX_CANVAS_DIM) {
+    tileScale = Math.min(tileScale, MAX_CANVAS_DIM / viewBoxH);
+  }
+
+  const canvasW = Math.round(viewBoxW * tileScale);
+  const canvasH = Math.round(viewBoxH * tileScale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d')!;
+
+  const blob = new Blob([minimalSvg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = url;
+  });
+
+  ctx.drawImage(img, 0, 0, canvasW, canvasH);
+  URL.revokeObjectURL(url);
+
+  const tile: DynamicTile = { canvas, bbox, scale: tileScale, padding };
+  cache.set(regionId, tile);
+  return tile;
+}

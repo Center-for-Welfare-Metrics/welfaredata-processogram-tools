@@ -1,4 +1,5 @@
-import type { Region, Camera } from './types';
+import type { Region } from './types';
+import type { Camera } from './camera';
 
 const HIT_SCALE = 0.5;
 

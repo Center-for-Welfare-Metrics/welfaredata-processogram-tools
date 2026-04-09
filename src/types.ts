@@ -14,12 +14,6 @@ export interface Region {
   strokePadding: number;
 }
 
-export interface Camera {
-  scale: number;
-  translateX: number;
-  translateY: number;
-}
-
 export interface NavState {
   level: number;
   focusedId: string | null;
@@ -29,7 +23,7 @@ export interface NavState {
 export interface NavHistoryEntry {
   id: string | null;
   level: number;
-  camera: Camera;
+  camera: { scale: number; translateX: number; translateY: number };
 }
 
 export interface RasterCache {

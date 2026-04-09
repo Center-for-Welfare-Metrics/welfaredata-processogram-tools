@@ -1,5 +1,6 @@
-import type { NavState, Region, Camera } from './types';
+import type { NavState, Region } from './types';
 import { bboxToCamera } from './camera';
+import type { Camera } from './camera';
 
 export function drillDown(
   regionId: string,

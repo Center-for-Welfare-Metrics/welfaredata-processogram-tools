@@ -286,8 +286,8 @@ function cleanup(): void {
   dynamicCache.clear();
 
   nav = { level: -1, focusedId: null, history: [] };
-  camera = { scale: 1, translateX: 0, translateY: 0 };
-  target = { scale: 1, translateX: 0, translateY: 0 };
+  camera = new Camera();
+  target = new Camera();
   regions = new Map();
   svgWidth = 0;
   svgHeight = 0;

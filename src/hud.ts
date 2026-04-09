@@ -1,5 +1,6 @@
-import type { NavState, Camera, DynamicTile } from './types';
+import type { NavState, DynamicTile } from './types';
 import { LEVEL_NAMES } from './types';
+import type { Camera } from './camera';
 
 export class Hud {
   private fpsEl: HTMLElement;

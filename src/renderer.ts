@@ -1,5 +1,6 @@
-import type { NavState, Camera, RasterCache, DynamicTile, Region } from './types';
+import type { NavState, RasterCache, DynamicTile, Region } from './types';
 import { BG_COLOR, DIM_ALPHA } from './types';
+import type { Camera } from './camera';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;

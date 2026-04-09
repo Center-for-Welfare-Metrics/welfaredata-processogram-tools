@@ -1,4 +1,5 @@
-import type { NavState, Region, Camera } from './types';
+import type { NavState, Region } from './types';
+import type { Camera } from './camera';
 import { HitMap } from './hitmap';
 import { getAlias } from './parser';
 

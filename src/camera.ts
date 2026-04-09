@@ -58,7 +58,9 @@ export function bboxToCamera(bbox: BBox, canvasW: number, canvasH: number): Came
   console.log('[bboxToCamera] result', { scale, translateX, translateY });
   // FIM DEBUG
 
-  return { scale, translateX, translateY };
+  const cam = new Camera();
+  cam.setTransform(scale, translateX, translateY);
+  return cam;
 }
 
 export function animateCamera(camera: Camera, target: Camera): boolean {

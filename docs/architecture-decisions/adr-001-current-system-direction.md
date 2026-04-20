@@ -154,7 +154,7 @@ run on Google Cloud (Cloud Run + GCS).
 | Decision | Owner | Context |
 |---|---|---|
 | When to begin integration with WelfareData-New | Gabriel + Wladimir | After Phase 1 acceptance |
-| Domain transfer from Herikle's Vercel | Wladimir + Herikle | When production deploy is ready |
+| Domain transfer from Herikle's Vercel | Wladimir + Herikle | When production deploy is ready and validated |
 | Gemini API Key rotation | Wladimir | Key was in exposed .env; new key needed |
 
 ---
@@ -167,7 +167,7 @@ run on Google Cloud (Cloud Run + GCS).
 3. Run test matrix across priority SVGs: Pig, Laying Hens, Dark Hatchery, Cattle
 4. If Phase 1 accepted: begin integration of Canvas Navigator into WelfareData-New
 5. When integration complete: deploy WelfareData-New to Cloud Run
-6. Contact Herikle to disconnect domain from his Vercel account
+6. Contact Herikle to disconnect domain from his Vercel account (Only when we finish integrating and validating WelfareData_New)
 
 ---
 

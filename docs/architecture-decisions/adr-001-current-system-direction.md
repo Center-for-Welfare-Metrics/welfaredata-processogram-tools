@@ -176,4 +176,4 @@ run on Google Cloud (Cloud Run + GCS).
 - Prototype repository: https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools
 - WelfareData-New repository: https://github.com/Center-for-Welfare-Metrics/WelfareData-New
 - Live prototype: https://welfaredata-prototype.ulsyy6.easypanel.host/
-- Technical documentation (prototype): https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools/tree/main/docs
+- Technical documentation (prototype): https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools/tree/main/docs 

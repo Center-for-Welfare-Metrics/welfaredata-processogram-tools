@@ -133,6 +133,27 @@ run on Google Cloud (Cloud Run + GCS).
 | Integration with WelfareData-New | not in scope for Phase 1 |
 | GCS binary hitmap serving (.bin) | not in scope for Phase 1 |
 
+> The Canvas Navigator is a standalone rendering and navigation prototype.
+> It is not the integrated WelfareData platform.
+
+| Feature | Status |
+|---|---|
+| Canvas 2D rendering (low/mid tier) | implemented |
+| Color-based hit-testing (4 invisible layers) | implemented |
+| Drill-down / drill-up navigation | implemented |
+| Navigation through all levels down to --ci | implemented |
+| Treatment of --? groups as layout containers | implemented |
+| IndexedDB cache with SHA-1 hash | implemented |
+| Suspicious ID detection (audit layer) | implemented |
+| Hover highlight (dim + organic clip) | pending |
+| Singleton level skip in navigation | pending |
+| Breadcrumb with singleton level access | pending |
+| Integration with AI-generated descriptions | not in scope for Phase 1 |
+| Integration with login, database and admin | not in scope for Phase 1 |
+| Integration with WelfareData-New backend | not in scope for Phase 1 |
+| Dark mode | not in scope for Phase 1 |
+| Cloud Run deployment | not in scope for Phase 1 |
+
 ---
 
 ## Decisions Recorded

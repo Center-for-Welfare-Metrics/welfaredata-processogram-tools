@@ -2,7 +2,7 @@
 
 **Status:** under validation  
 **Date:** 2026-04-20  
-**Author:** Gabriel Sargeiro  
+**Author:** Gabriel  
 **Reviewed by:** Wladimir (Welfare Footprint Institute)
 
 ---

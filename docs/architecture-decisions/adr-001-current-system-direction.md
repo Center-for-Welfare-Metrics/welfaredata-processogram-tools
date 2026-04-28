@@ -49,9 +49,9 @@ No technical contribution from Herikle is expected or required beyond this.
 
 ---
 
-### System 2 — WelfareData-New (validated, awaiting integration)
+### System 2 — WelfareData-New (awaiting navigator integration)
 
-**Status:** validated (backend + frontend complete); integration pending  
+**Status:** feature-complete locally; awaiting navigator integration
 **Repository:** https://github.com/Center-for-Welfare-Metrics/WelfareData-New  
 **Hosting:** development environment only (localhost); not deployed to production
 
@@ -115,6 +115,9 @@ run on Google Cloud (Cloud Run + GCS).
 
 ## Feature Status — Canvas Navigator (Phase 1)
 
+> The Canvas Navigator is a standalone rendering and navigation prototype.
+> It is not the integrated WelfareData platform.
+
 | Feature | Status |
 |---|---|
 | Canvas 2D rendering (low/mid tier) | implemented |
@@ -126,28 +129,12 @@ run on Google Cloud (Cloud Run + GCS).
 | Audit layer (suspicious ID detection) | implemented |
 | SVG normalization (viewBox/width/height) | implemented |
 | Anti-aliasing elimination (crispEdges) | implemented |
-| Hover highlight (dim + organic clip) | pending |
-| Singleton level skip in navigation | pending |
-| Breadcrumb with skipped level access | pending |
-| Dark mode via ctx.filter | not in scope for Phase 1 |
-| Integration with WelfareData-New | not in scope for Phase 1 |
-| GCS binary hitmap serving (.bin) | not in scope for Phase 1 |
-
-> The Canvas Navigator is a standalone rendering and navigation prototype.
-> It is not the integrated WelfareData platform.
-
-| Feature | Status |
-|---|---|
-| Canvas 2D rendering (low/mid tier) | implemented |
-| Color-based hit-testing (4 invisible layers) | implemented |
 | Drill-down / drill-up navigation | implemented |
 | Navigation through all levels down to --ci | implemented |
 | Treatment of --? groups as layout containers | implemented |
-| IndexedDB cache with SHA-1 hash | implemented |
-| Suspicious ID detection (audit layer) | implemented |
-| Hover highlight (dim + organic clip) | pending |
 | Singleton level skip in navigation | pending |
 | Breadcrumb with singleton level access | pending |
+| Hover highlight | nice to have — under investigation |
 | Integration with AI-generated descriptions | not in scope for Phase 1 |
 | Integration with login, database and admin | not in scope for Phase 1 |
 | Integration with WelfareData-New backend | not in scope for Phase 1 |
@@ -165,6 +152,8 @@ run on Google Cloud (Cloud Run + GCS).
 | Vercel is not part of the final stack | validated | Google Cloud ecosystem preferred |
 | Cloud Run is the final deployment target | validated | Native GCS + Gemini integration |
 | Canvas Navigator replaces DOM navigation | validated | Solves performance at root level |
+| Validate before integrating | validated | Canvas Navigator must be fully validated as standalone before integration into WelfareData-New begins |
+| Integration before deploy | validated | WelfareData-New will only be deployed to Cloud Run after Canvas Navigator integration is complete and validated |
 | Integration with WelfareData-New | pending | Awaiting Phase 1 validation |
 | Architecture final | pending | Depends on Phase 1 validation |
 
@@ -176,7 +165,7 @@ run on Google Cloud (Cloud Run + GCS).
 |---|---|---|
 | When to begin integration with WelfareData-New | Gabriel + Wladimir | After Phase 1 acceptance |
 | Domain transfer from Herikle's Vercel | Wladimir + Herikle | When production deploy is ready and validated |
-| Gemini API Key rotation | Wladimir | Key was in exposed .env; new key needed |
+| Gemini API Key rotation | Gabriel + Wladimir | Not a Phase 1 blocker. Documented in WelfareData-New/docs/environment_variables.md — to be executed before Phase 2 AI integration |
 
 ---
 
@@ -184,7 +173,8 @@ run on Google Cloud (Cloud Run + GCS).
 
 1. Complete Phase 1 validation (see issue: Phase 1 — Validate Canvas navigator
    with priority WelfareData SVGs)
-2. Implement pending features: hover highlight, singleton level skip, breadcrumb
+2. Implement pending features: singleton level skip, breadcrumb with singleton access
+   (hover highlight is under investigation — not required for Phase 1)
 3. Run test matrix across priority SVGs: Pig, Laying Hens, Dark Hatchery, Cattle
 4. If Phase 1 accepted: begin integration of Canvas Navigator into WelfareData-New
 5. When integration complete: deploy WelfareData-New to Cloud Run

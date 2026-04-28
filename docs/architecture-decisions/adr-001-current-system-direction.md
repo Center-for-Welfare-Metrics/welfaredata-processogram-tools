@@ -165,7 +165,7 @@ run on Google Cloud (Cloud Run + GCS).
 |---|---|---|
 | When to begin integration with WelfareData-New | Gabriel + Wladimir | After Phase 1 acceptance |
 | Domain transfer from Herikle's Vercel | Wladimir + Herikle | When production deploy is ready and validated |
-| Gemini API Key rotation | Gabriel + Wladimir | Not a Phase 1 blocker. Documented in WelfareData-New/docs/environment_variables.md — to be executed before Phase 2 AI integration |
+| Gemini API Key rotation | Gabriel + Wladimir | Not a Phase 1 blocker. Documented in WelfareData-New/docs/environment_variables.md — to be executed before Post-Phase-1 Integration |
 
 ---
 

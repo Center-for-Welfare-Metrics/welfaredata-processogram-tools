@@ -1,10 +1,10 @@
-import type { NavState, RasterCache, DynamicTile, Region } from './types';
+import type { BreadcrumbItem, NavHistoryEntry, NavState, RasterCache, DynamicTile, Region } from './types';
 import { parseSvg } from './parser';
 import { buildRasterCache, buildDynamicTile } from './rasterizer';
 import type { RasterizerConfig } from './rasterizer';
-import { Camera, animateCamera, fitToCanvas } from './camera';
+import { Camera, animateCamera, bboxToCamera, fitToCanvas } from './camera';
 import { HitMap } from './hitmap';
-import { drillDown, drillUp, resetView } from './navigation';
+import { buildBreadcrumb, drillDown, drillUp, resetView } from './navigation';
 import { Renderer } from './renderer';
 import { Hud } from './hud';
 import { setupEvents } from './events';
@@ -25,6 +25,7 @@ let isAnimating = false;
 let animFrameId: number | null = null;
 let lastFrameTime = 0;
 let rasterizerConfig: RasterizerConfig | null = null;
+const skippedLevelsByFocusId = new Map<string, string[]>();
 
 // ── DOM ──
 const uploadPhase = document.getElementById('upload-phase')!;
@@ -40,6 +41,33 @@ const switchBtn = document.getElementById('switch-btn')!;
 let renderer: Renderer;
 let hud: Hud;
 let hitmap: HitMap;
+
+(window as any).__dbg = {
+  get regions() {
+    return regions;
+  },
+  get nav() {
+    return nav;
+  },
+  get camera() {
+    return camera;
+  },
+  get target() {
+    return target;
+  },
+  get hitmap() {
+    return hitmap;
+  },
+  get svgWidth() {
+    return svgWidth;
+  },
+  get svgHeight() {
+    return svgHeight;
+  },
+  get buildBreadcrumb() {
+    return buildBreadcrumb;
+  },
+};
 
 // ── Progress helpers ──
 function setProgress(pct: number, label: string): void {
@@ -103,17 +131,6 @@ async function handleFile(file: File): Promise<void> {
   hitmap = new HitMap();
   await hitmap.build(svgText, regions, svgWidth, svgHeight);
 
-  // Debug: expor estado para diagnóstico no console
-  (window as any).__dbg = {
-    regions,
-    nav,
-    camera,
-    target,
-    hitmap,
-    svgWidth,
-    svgHeight,
-  };
-
   setProgress(85, 'Initializing canvas...');
   await tick();
   setupCanvas();
@@ -126,6 +143,7 @@ async function handleFile(file: File): Promise<void> {
     fit.translateX,
     fit.translateY
   );
+  renderBreadcrumb();
   target.setTransform(
     fit.scale,
     fit.translateX,
@@ -186,24 +204,175 @@ function tick(): Promise<void> {
   return new Promise(r => requestAnimationFrame(() => r()));
 }
 
+function rememberSkippedLevels(): void {
+  if (nav.focusedId === null) return;
+  skippedLevelsByFocusId.set(nav.focusedId, [...nav.skippedLevels]);
+}
+
+function restoreSkippedLevels(): void {
+  nav.skippedLevels = nav.focusedId === null
+    ? []
+    : [...(skippedLevelsByFocusId.get(nav.focusedId) ?? [])];
+}
+
+function getRootCameraState(): { scale: number; translateX: number; translateY: number } {
+  const fit = fitToCanvas(svgWidth, svgHeight, window.innerWidth, window.innerHeight);
+  return {
+    scale: fit.scale,
+    translateX: fit.translateX,
+    translateY: fit.translateY,
+  };
+}
+
+function getRegionCameraState(region: Region): { scale: number; translateX: number; translateY: number } {
+  const fit = bboxToCamera(region.bbox, window.innerWidth, window.innerHeight);
+  return {
+    scale: fit.scale,
+    translateX: fit.translateX,
+    translateY: fit.translateY,
+  };
+}
+
+function buildHistoryForBreadcrumb(items: BreadcrumbItem[], targetIndex: number): NavHistoryEntry[] {
+  const history: NavHistoryEntry[] = [{
+    id: null,
+    level: -1,
+    camera: getRootCameraState(),
+  }];
+
+  for (let index = 0; index < targetIndex; index++) {
+    const region = regions.get(items[index].id);
+    if (!region) continue;
+
+    history.push({
+      id: region.id,
+      level: region.level,
+      camera: getRegionCameraState(region),
+    });
+  }
+
+  return history;
+}
+
+function focusBreadcrumbRegion(item: BreadcrumbItem, items: BreadcrumbItem[], targetIndex: number): void {
+  const region = regions.get(item.id);
+  if (!region) return;
+
+  if (!region.bbox || region.bbox.width < 0.1 || region.bbox.height < 0.1) {
+    console.warn('[breadcrumb] bbox inválido para:', item.id);
+    return;
+  }
+
+  nav.history = buildHistoryForBreadcrumb(items, targetIndex);
+  nav.level = region.level;
+  nav.focusedId = region.id;
+  nav.skippedLevels = items
+    .slice(0, targetIndex + 1)
+    .filter(entry => entry.isSkipped)
+    .map(entry => entry.id);
+  rememberSkippedLevels();
+
+  onTileNeeded(region.id);
+
+  const cameraState = getRegionCameraState(region);
+  target.setTransform(
+    cameraState.scale,
+    cameraState.translateX,
+    cameraState.translateY
+  );
+
+  isAnimating = true;
+  needsRedraw = true;
+}
+
+function renderBreadcrumb(): void {
+  const breadcrumbEl = document.getElementById('breadcrumb')!;
+  const items = buildBreadcrumb(nav.focusedId, regions, nav.skippedLevels);
+
+  if (items.length === 0) {
+    breadcrumbEl.style.display = 'none';
+    breadcrumbEl.replaceChildren();
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  items.forEach((item, index) => {
+    if (index > 0) {
+      const separator = document.createElement('span');
+      separator.className = 'breadcrumb-separator';
+      separator.textContent = '›';
+      fragment.appendChild(separator);
+    }
+
+    const itemEl = document.createElement('span');
+    itemEl.className = 'breadcrumb-item';
+    itemEl.dataset.regionId = item.id;
+    itemEl.textContent = item.label || item.id;
+
+    if (item.isSkipped) {
+      itemEl.classList.add('is-skipped');
+    }
+
+    if (index === items.length - 1) {
+      itemEl.classList.add('is-active');
+    }
+
+    itemEl.addEventListener('click', (e: MouseEvent) => {
+      e.stopPropagation();
+
+      if (item.id === nav.focusedId) return;
+
+      const stepsBack = [...nav.history]
+        .reverse()
+        .findIndex(entry => entry.id === item.id);
+
+      if (stepsBack !== -1) {
+        for (let step = 0; step <= stepsBack; step++) {
+          drillUp(nav, target);
+        }
+        restoreSkippedLevels();
+        isAnimating = true;
+        needsRedraw = true;
+        renderBreadcrumb();
+        return;
+      }
+
+      focusBreadcrumbRegion(item, items, index);
+      renderBreadcrumb();
+    });
+
+    fragment.appendChild(itemEl);
+  });
+
+  breadcrumbEl.replaceChildren(fragment);
+  breadcrumbEl.style.display = 'flex';
+}
+
 // ── Navigation callbacks ──
 function onDrillDown(regionId: string): void {
   drillDown(regionId, nav, regions, camera, target,
     window.innerWidth, window.innerHeight, onTileNeeded);
+  rememberSkippedLevels();
   isAnimating = true;
   needsRedraw = true;
+  renderBreadcrumb();
 }
 
 function onDrillUp(): void {
   drillUp(nav, target);
+  restoreSkippedLevels();
   isAnimating = true;
   needsRedraw = true;
+  renderBreadcrumb();
 }
 
 function onReset(): void {
   resetView(nav, target, svgWidth, svgHeight, window.innerWidth, window.innerHeight);
+  nav.skippedLevels = [];
   isAnimating = true;
   needsRedraw = true;
+  renderBreadcrumb();
 }
 
 function onNeedsRedrawCb(): void {
@@ -284,6 +453,7 @@ function cleanup(): void {
     tile.canvas.height = 0;
   }
   dynamicCache.clear();
+  skippedLevelsByFocusId.clear();
 
   nav = { level: -1, focusedId: null, history: [], skippedLevels: [] };
   camera = new Camera();
@@ -296,6 +466,7 @@ function cleanup(): void {
   needsRedraw = true;
   isAnimating = false;
   rasterizerConfig = null;
+  renderBreadcrumb();
 }
 
 // ── Drag & Drop ──

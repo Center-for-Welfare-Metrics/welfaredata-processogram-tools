@@ -133,7 +133,7 @@ run on Google Cloud (Cloud Run + GCS).
 | Navigation through all levels down to --ci | implemented |
 | Treatment of --? groups as layout containers | implemented |
 | Singleton level skip in navigation | implemented |
-| Breadcrumb with singleton level access | pending |
+| Breadcrumb with singleton level access | implemented |
 | Hover highlight | nice to have — under investigation |
 | Integration with AI-generated descriptions | not in scope for Phase 1 |
 | Integration with login, database and admin | not in scope for Phase 1 |
@@ -173,12 +173,10 @@ run on Google Cloud (Cloud Run + GCS).
 
 1. Complete Phase 1 validation (see issue: Phase 1 — Validate Canvas navigator
    with priority WelfareData SVGs)
-2. Implement pending features: breadcrumb with singleton access
-   (hover highlight is under investigation — not required for Phase 1)
-3. Run test matrix across priority SVGs: Pig, Laying Hens, Dark Hatchery, Cattle
-4. If Phase 1 accepted: begin integration of Canvas Navigator into WelfareData-New
-5. When integration complete: deploy WelfareData-New to Cloud Run
-6. Contact Herikle to disconnect domain from his Vercel account (Only when we finish integrating and validating WelfareData_New)
+2. Run test matrix across priority SVGs: Pig, Laying Hens, Dark Hatchery, Cattle
+3. If Phase 1 accepted: begin integration of Canvas Navigator into WelfareData-New
+4. When integration complete: deploy WelfareData-New to Cloud Run
+5. Contact Herikle to disconnect domain from his Vercel account (Only when we finish integrating and validating WelfareData_New)
 
 ---
 

@@ -45,3 +45,10 @@ export const SNAP_THRESHOLD = 0.5;
 export const MAX_CANVAS_DIM = 8192;
 export const BG_COLOR = '#0a0a0a';
 export const DIM_ALPHA = 0.15;
+
+export interface BreadcrumbItem {
+  id: string;
+  label: string;
+  level: number;
+  isSkipped: boolean;
+}

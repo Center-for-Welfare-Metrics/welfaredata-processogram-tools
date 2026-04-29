@@ -1,4 +1,4 @@
-import type { NavState, Region } from './types';
+import type { BreadcrumbItem, NavState, Region } from './types';
 import { bboxToCamera } from './camera';
 import type { Camera } from './camera';
 
@@ -105,4 +105,36 @@ export function resetView(
     fit.translateX,
     fit.translateY
   );
+}
+
+export function buildBreadcrumb(
+  focusedId: string | null,
+  regions: Map<string, Region>,
+  skippedLevels: string[]
+): BreadcrumbItem[] {
+  if (focusedId === null) return [];
+
+  const items: BreadcrumbItem[] = [];
+  let currentId: string | null = focusedId;
+
+  while (currentId !== null) {
+    const region = regions.get(currentId);
+    if (!region) break;
+
+    const label = currentId
+      .replace(/(?:--|_)(?:ps|lf|ph|ci)\d*(?:[_-]\d+)?$/i, '')
+      .replace(/[_-]+/g, ' ')
+      .trim();
+
+    items.unshift({
+      id: region.id,
+      label,
+      level: region.level,
+      isSkipped: skippedLevels.includes(region.id),
+    });
+
+    currentId = region.parentId;
+  }
+
+  return items;
 }

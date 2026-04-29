@@ -1,155 +1,154 @@
-# main.ts — Orquestração central do sistema
+# main.ts — Central orchestration
 
-## O que faz
+## What it does
 
-O `main.ts` é o ponto de entrada da aplicação. Instancia todos os módulos, gerencia o estado global, conecta os callbacks de navegação e eventos, e executa o loop de renderização via `requestAnimationFrame`.
+`main.ts` is the entry point of the prototype. It owns the module-scoped state,
+instantiates the main runtime objects, wires event callbacks to navigation,
+controls breadcrumb rendering, and runs the `requestAnimationFrame` loop.
 
-## Por que existe
+## Why it exists
 
-Um módulo orquestrador central simplifica o fluxo de inicialização e garante que todos os módulos compartilhem as mesmas referências de estado. Sem ele, cada módulo precisaria buscar suas dependências independentemente, complicando o wiring.
+The viewer needs one orchestration layer that can connect parser output,
+navigation state, hit-testing, camera animation, dynamic tiles, and UI updates
+without duplicating state ownership across modules.
 
-## Ordem de inicialização
+## Initialization order
 
-A inicialização acontece em duas fases:
+Initialization happens in two phases.
 
-### Fase 1 — Setup estático (ao carregar a página)
+### Phase 1 — Static setup on page load
 
 ```ts
-// State
-let nav: NavState = { level: -1, focusedId: null, history: [] };
+let nav: NavState = { level: -1, focusedId: null, history: [], skippedLevels: [] };
 let camera = new Camera();
 let target = new Camera();
 let rasterCache: RasterCache = { low: null, mid: null };
 const dynamicCache = new Map<string, DynamicTile>();
 let regions = new Map<string, Region>();
-
-// DOM
-const mainCanvas = document.getElementById('main-canvas') as HTMLCanvasElement;
-const uploadPhase = document.getElementById('upload-phase')!;
-// ... etc
+const skippedLevelsByFocusId = new Map<string, string[]>();
 ```
 
-### Fase 2 — Setup dinâmico (quando o usuário carrega um SVG)
+### Phase 2 — Dynamic setup after the user loads an SVG
 
-Executado dentro de `handleFile()` — ver [handleFile.md](handleFile.md).
+This happens inside `handleFile()`.
 
-## Módulos instanciados
+## Instantiated modules
 
-| Módulo         | Instância    | Quando                     | Tipo          |
-|----------------|-------------|----------------------------|---------------|
-| `Camera`       | `camera`    | Estático                   | Classe        |
-| `Camera`       | `target`    | Estático                   | Classe        |
-| `Renderer`     | `renderer`  | Em `setupCanvas()`         | Classe        |
-| `HitMap`       | `hitmap`    | Em `handleFile()`          | Classe        |
-| `Hud`          | `hud`       | Em `handleFile()`          | Classe        |
+| Module | Instance | When | Type |
+|---|---|---|---|
+| `Camera` | `camera` | Static | Class |
+| `Camera` | `target` | Static | Class |
+| `Renderer` | `renderer` | In `setupCanvas()` | Class |
+| `HitMap` | `hitmap` | In `handleFile()` | Class |
+| `Hud` | `hud` | In `handleFile()` | Class |
 
-## Como o rAF loop é iniciado
+## How the render loop starts
 
 ```ts
-// Ao final de handleFile()
 lastFrameTime = performance.now();
 renderLoop(lastFrameTime);
 ```
 
-O loop é registrado uma vez e roda indefinidamente:
+The loop then runs continuously through `requestAnimationFrame()`.
 
-```ts
-function renderLoop(now: number): void {
-  animFrameId = requestAnimationFrame(renderLoop);
+## Core module-scoped variables
 
-  // 1. Track frame timing (para HUD FPS)
-  const dt = now - lastFrameTime;
-  lastFrameTime = now;
-  hud.trackFrame(dt);
+| Variable | Type | Why it exists |
+|---|---|---|
+| `nav` | `NavState` | Shared navigation state for events, renderer, HUD, and breadcrumb logic |
+| `camera` | `Camera` | Live mutable camera state |
+| `target` | `Camera` | Animation target written by navigation |
+| `rasterCache` | `RasterCache` | Low and mid raster tiers used by the renderer |
+| `dynamicCache` | `Map<string, DynamicTile>` | On-demand tile cache keyed by region ID |
+| `regions` | `Map<string, Region>` | Parsed region graph consumed across the runtime |
+| `skippedLevelsByFocusId` | `Map<string, string[]>` | Remembers breadcrumb skip metadata for previously focused regions |
+| `needsRedraw` | `boolean` | Dirty flag that prevents redundant rendering |
+| `isAnimating` | `boolean` | Controls whether the camera lerp runs |
 
-  // 2. Animação da câmera (se em progresso)
-  if (isAnimating) {
-    const moved = animateCamera(camera, target);
-    if (moved) {
-      needsRedraw = true;
-    } else {
-      isAnimating = false;
-      needsRedraw = true; // último frame após snap
-    }
-  }
+These variables are global only inside the module. `main.ts` owns them because
+it is the integration point for the rest of the system.
 
-  // 3. Renderização condicional (skip se nada mudou)
-  if (!needsRedraw) {
-    hud.updateIfNeeded(nav, camera, ...);
-    return;
-  }
-  needsRedraw = false;
+## Breadcrumb and singleton skip state
 
-  renderer.render(nav, camera, rasterCache, dynamicCache, regions, svgWidth, svgHeight);
-  hud.updateIfNeeded(nav, camera, ...);
-}
-```
+Singleton skip is not handled only at the moment of drill-down. `main.ts`
+maintains extra state so the breadcrumb can remain consistent when the user
+navigates back or clicks breadcrumb items.
 
-O loop:
-- Roda a 60fps (via `requestAnimationFrame`)
-- `needsRedraw` evita re-renderização quando nada mudou (ex: mouse parado, câmera parada)
-- `isAnimating` controla se `animateCamera()` deve ser chamado
+### `rememberSkippedLevels()`
 
-## Variáveis globais e por que existem
+Stores the current `nav.skippedLevels` under the current `focusedId`.
 
-| Variável          | Tipo                            | Por que global                                    |
-|-------------------|---------------------------------|---------------------------------------------------|
-| `nav`             | `NavState`                      | Compartilhado entre events, hitmap, renderer, hud |
-| `camera`          | `Camera`                        | Estado mutável lido por renderer e hitmap         |
-| `target`          | `Camera`                        | Alvo da animação, setado por navigation           |
-| `rasterCache`     | `RasterCache`                   | Produzido pelo rasterizer, consumido pelo renderer |
-| `dynamicCache`    | `Map<string, DynamicTile>`      | Cache de tiles por região focada                  |
-| `regions`         | `Map<string, Region>`           | Produzido pelo parser, consumido por todos        |
-| `svgWidth/Height` | `number`                        | Dimensões do SVG, usadas por câmera e hitmap      |
-| `svgText`         | `string`                        | Texto bruto para rebuilds (hitmap, dynamic tiles)  |
-| `svgImage`        | `HTMLImageElement \| null`      | Imagem carregada para rasterização                |
-| `needsRedraw`     | `boolean`                       | Flag de dirty rendering — evita frames redundantes |
-| `isAnimating`     | `boolean`                       | Controla se animateCamera() é chamado             |
-| `animFrameId`     | `number \| null`                | ID do rAF para cancelamento no cleanup            |
-| `rasterizerConfig`| `RasterizerConfig \| null`      | Config para buildDynamicTile on-demand            |
+### `restoreSkippedLevels()`
 
-Essas variáveis são "globais" dentro do módulo (module-scoped) — não são globais do `window`. Elas existem porque o main.ts é o hub que conecta todos os módulos, e cada módulo precisa ler ou escrever partes desse estado.
+Restores skip metadata for the newly focused region after a `drillUp()` or
+breadcrumb navigation step.
+
+- If the new focus is ROOT, `nav.skippedLevels` becomes `[]`
+- If the focus has remembered skip metadata, that chain is restored
+
+### `renderBreadcrumb()`
+
+Uses `buildBreadcrumb(nav.focusedId, regions, nav.skippedLevels)` to rebuild
+the visible breadcrumb path and mark skipped conceptual levels.
 
 ## Navigation callbacks
 
-O main.ts define callbacks que fazem bridge entre events.ts e navigation.ts:
+`main.ts` bridges events and navigation through callbacks.
 
 ```ts
 function onDrillDown(regionId: string): void {
   drillDown(regionId, nav, regions, camera, target,
     window.innerWidth, window.innerHeight, onTileNeeded);
+  rememberSkippedLevels();
   isAnimating = true;
   needsRedraw = true;
+  renderBreadcrumb();
 }
 
 function onDrillUp(): void {
   drillUp(nav, target);
+  restoreSkippedLevels();
   isAnimating = true;
   needsRedraw = true;
+  renderBreadcrumb();
 }
 
 function onReset(): void {
   resetView(nav, target, svgWidth, svgHeight,
     window.innerWidth, window.innerHeight);
+  nav.skippedLevels = [];
   isAnimating = true;
   needsRedraw = true;
+  renderBreadcrumb();
 }
 ```
 
-Cada callback:
-1. Chama a função de navigation correspondente
-2. Ativa `isAnimating` para que o loop chame `animateCamera()`
-3. Seta `needsRedraw` para garantir renderização imediata
+This is where the runtime behavior of `skippedLevels` is completed:
 
-## Dependências
+- after `drillDown()`, skipped levels are remembered for the new focus
+- after `drillUp()`, skipped levels are restored for the restored focus
+- after reset, skipped levels are explicitly cleared
 
-| Direção    | Módulo           | Relação                              |
-|------------|------------------|--------------------------------------|
-| Importa    | `parser.ts`      | `parseSvg()` no carregamento         |
-| Importa    | `rasterizer.ts`  | `buildRasterCache()`, `buildDynamicTile()` |
-| Importa    | `camera.ts`      | Classe `Camera`, `animateCamera()`, `fitToCanvas()` |
-| Importa    | `hitmap.ts`      | Classe `HitMap`                      |
-| Importa    | `navigation.ts`  | `drillDown()`, `drillUp()`, `resetView()` |
-| Importa    | `renderer.ts`    | Classe `Renderer`                    |
-| Importa    | `hud.ts`         | Classe `Hud`                         |
-| Importa    | `events.ts`      | `setupEvents()`                      |
+## Render loop behavior
+
+The render loop has three main jobs:
+
+1. track timing for the HUD
+2. animate `camera` toward `target` when needed
+3. redraw only when the dirty flag requires it
+
+That keeps interaction responsive while avoiding unnecessary work during idle
+frames.
+
+## Dependencies
+
+| Direction | Module | Relationship |
+|---|---|---|
+| Imports | `parser.ts` | Uses `parseSvg()` during file loading |
+| Imports | `rasterizer.ts` | Uses `buildRasterCache()` and `buildDynamicTile()` |
+| Imports | `camera.ts` | Uses `Camera`, `animateCamera()`, `bboxToCamera()`, and `fitToCanvas()` |
+| Imports | `hitmap.ts` | Uses `HitMap` |
+| Imports | `navigation.ts` | Uses `drillDown()`, `drillUp()`, `resetView()`, and `buildBreadcrumb()` |
+| Imports | `renderer.ts` | Uses `Renderer` |
+| Imports | `hud.ts` | Uses `Hud` |
+| Imports | `events.ts` | Uses `setupEvents()` |

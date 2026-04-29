@@ -1,8 +1,9 @@
-# drillUp() — Voltar um nível na hierarquia
+# drillUp() — Restore the previous visited visual state
 
-## O que faz
+## What it does
 
-Restaura o estado de navegação e a câmera-alvo para o nível anterior, usando o último snapshot salvo na pilha de histórico.
+`drillUp()` restores the navigation state and target camera from the most
+recent history snapshot.
 
 ```ts
 export function drillUp(nav: NavState, target: Camera): void {
@@ -19,46 +20,38 @@ export function drillUp(nav: NavState, target: Camera): void {
 }
 ```
 
-## Por que existe
+## Why it exists
 
-O drill-up é o complemento do drill-down — permite ao usuário voltar ao nível anterior. A pilha de histórico garante que o retorno restaure exatamente o estado visual que o usuário tinha antes de entrar.
+Drill-up is the inverse of drill-down. It lets the user go back to the last
+visited visual context, including the exact camera snapshot that was stored
+before the previous transition.
 
-## Como funciona
+## How it works
 
-### Passo 1 — Verificar se há histórico
+### Step 1 — Check whether history exists
 
 ```ts
 if (nav.history.length === 0) return;
 ```
 
-No nível ROOT, a pilha está vazia. Chamar `drillUp()` no ROOT é um no-op — não há para onde voltar.
+At ROOT the history stack is empty, so `drillUp()` becomes a no-op.
 
-### Passo 2 — Pop do último estado
+### Step 2 — Pop the most recent snapshot
 
 ```ts
 const prev = nav.history.pop()!;
 ```
 
-Remove e retorna o último snapshot da pilha. Cada snapshot contém:
+The popped object contains the previous focus, level, and camera values.
 
-```ts
-interface NavHistoryEntry {
-  id: string | null;   // focusedId antes do drill-down
-  level: number;       // nível antes do drill-down
-  camera: Camera;      // posição/zoom antes do drill-down
-}
-```
-
-### Passo 3 — Restaurar NavState
+### Step 3 — Restore navigation state
 
 ```ts
 nav.level = prev.level;
 nav.focusedId = prev.id;
 ```
 
-O `nav` é mutado in-place para refletir o estado anterior.
-
-### Passo 4 — Restaurar câmera-alvo
+### Step 4 — Restore target camera
 
 ```ts
 target.setTransform(
@@ -68,79 +61,68 @@ target.setTransform(
 );
 ```
 
-A câmera-alvo é setada para a posição exata salva no snapshot. O loop de animação interpolará suavemente de volta.
+The animation loop then moves the live camera back toward this restored target.
 
-### Pilha de estados anteriores
+## Interaction with singleton skip
 
-Exemplo de evolução da pilha durante navegação:
+Singleton skip does not add intermediate entries to `history`. That means a
+single `drillUp()` always returns to the previous visited visual state, not to
+every conceptual level that may have been crossed automatically.
 
-| Ação                            | history stack                                     | nav.focusedId     |
-|---------------------------------|---------------------------------------------------|-------------------|
-| Início (ROOT)                   | `[]`                                              | `null`            |
-| Drill-down em `shed-01--ps`     | `[{null, -1, cam₀}]`                             | `"shed-01--ps"`   |
-| Drill-down em `floor-01_lf`    | `[{null, -1, cam₀}, {"shed-01--ps", 0, cam₁}]`  | `"floor-01_lf"`   |
-| Drill-up                        | `[{null, -1, cam₀}]`                             | `"shed-01--ps"`   |
-| Drill-up                        | `[]`                                              | `null`            |
-| Drill-up (no ROOT)              | `[]` (no-op)                                      | `null`            |
+Example:
 
-### O que acontece no nível root
+```text
+ROOT
+  click Feedlot--ps
+  resolveSkipTarget() -> holding--ph
+```
 
-Quando `nav.history.length === 0`:
-- **Click em área vazia** → `events.ts` chama `onDrillUp()` → `drillUp()` retorna imediatamente (no-op)
-- **ESC** → mesmo comportamento
+If that transition skipped `market_animal--lf`, the history stack still stores
+only the pre-click state. One `drillUp()` returns to that state directly.
 
-O usuário não percebe nada — o sistema simplesmente ignora a ação.
+`drillUp()` itself does not recompute `nav.skippedLevels`. In the current
+runtime flow, `main.ts` calls `restoreSkippedLevels()` after `drillUp()` so the
+breadcrumb state matches the restored focus. When the restored focus is ROOT,
+`nav.skippedLevels` becomes `[]`.
 
-## Parâmetros
+## Parameters
 
-| Parâmetro | Tipo       | Descrição                                   |
-|-----------|------------|---------------------------------------------|
-| `nav`     | `NavState` | Estado de navegação (mutado in-place)       |
-| `target`  | `Camera`   | Câmera-alvo (setada para animação de volta) |
+| Parameter | Type | Meaning |
+|---|---|---|
+| `nav` | `NavState` | Mutable navigation state |
+| `target` | `Camera` | Camera target restored from the saved history entry |
 
-## Retorno
+## Return value
 
-`void` — muta `nav` e `target` in-place, ou não faz nada se a pilha está vazia.
+`void` — the function mutates `nav` and `target` in place, or does nothing when
+history is empty.
 
-## Exemplos de uso
+## Example usage
 
 ```ts
-// main.ts
 function onDrillUp(): void {
   drillUp(nav, target);
+  restoreSkippedLevels();
   isAnimating = true;
   needsRedraw = true;
 }
-
-// events.ts — tecla ESC
-document.addEventListener('keydown', (e: KeyboardEvent) => {
-  if (e.key === 'Escape') {
-    onDrillUp();
-  }
-});
-
-// events.ts — click em área vazia
-if (!regionId) {
-  const hasAny = hitmap.hasRegionAt(canvasX, canvasY, camera, nav);
-  if (!hasAny) {
-    onDrillUp();
-  }
-}
 ```
 
-## Dependências
+## Dependencies
 
-| Direção    | Módulo     | Relação                          |
-|------------|-----------|----------------------------------|
-| Importa    | `types.ts` | `NavState`, `Camera`             |
-| Chamado por | `main.ts` | Via callback `onDrillUp`        |
+| Direction | Module | Relationship |
+|---|---|---|
+| Imports | `types.ts` | Uses `NavState` and camera snapshot data |
+| Called by | `main.ts` | Triggered through the `onDrillUp()` callback |
 
-## Decisões arquiteturais
+## Architectural decisions
 
-### Por que restaurar a câmera exata e não recalcular?
+### Why restore an exact camera snapshot instead of recalculating it?
 
-Se o usuário fez pan/zoom manualmente dentro de um nível antes de dar drill-down, recalcular com `bboxToCamera()` perderia essa posição. O snapshot preserva o contexto visual exato do usuário.
+The user may have panned or zoomed before drilling down. Restoring the saved
+camera snapshot preserves that precise visual context.
 
-### Por que pop e não peek + delete?
+### Why use `pop()` instead of reading history without removing it?
 
-`Array.pop()` é O(1) e faz exatamente o que é preciso: remove o último elemento e retorna. Não há cenário onde o último estado precise ser consultado sem ser removido.
+The navigation model is stack-based. Once a previous state has been restored,
+it should no longer remain at the top of the stack.

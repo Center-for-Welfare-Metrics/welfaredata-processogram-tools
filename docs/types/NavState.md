@@ -1,141 +1,182 @@
-# NavState — Estado de navegação hierárquica
+# NavState — Hierarchical navigation state
 
-## O que faz
+## What it does
 
-A interface `NavState` captura o estado completo da navegação do usuário: em que nível está, qual região está focada, e o histórico de estados anteriores para permitir drill-up.
+`NavState` stores the current navigation state of the viewer: the active depth,
+the focused region, the history stack used by `drillUp()`, and the singleton
+levels skipped by the most recent resolved drill-down.
 
 ```ts
 export interface NavState {
   level: number;
   focusedId: string | null;
   history: NavHistoryEntry[];
+  skippedLevels: string[];
 }
 ```
 
-## Cada campo
+## Fields
 
 ### `level: number`
 
-Nível hierárquico atual:
+Current hierarchy level.
 
-| Valor | Significado                       |
-|-------|-----------------------------------|
-| -1    | ROOT — visão geral, sem foco      |
-| 0     | ps — Poultry Shed (aviário)       |
-| 1     | lf — Laying Floor (piso)          |
-| 2     | ph — Poultry House (galpão)       |
-| 3     | ci — Cage/Individual (gaiola)     |
+| Value | Meaning |
+|---|---|
+| `-1` | ROOT — overview, no focused region |
+| `0` | `ps` — Production System |
+| `1` | `lf` — Life Fate |
+| `2` | `ph` — Phase |
+| `3` | `ci` — Circumstance |
 
 ### `focusedId: string | null`
 
-ID da região atualmente em foco. `null` quando no ROOT.
+ID of the region currently in focus. It is `null` at ROOT.
 
 ### `history: NavHistoryEntry[]`
 
-Pilha (stack) de estados anteriores. Cada entrada salva o snapshot completo antes de um drill-down:
+Stack of previously visited visual states. Each entry stores a snapshot of the
+navigation state before a resolved drill-down transition.
 
 ```ts
 interface NavHistoryEntry {
-  id: string | null;   // focusedId do momento
-  level: number;       // Nível do momento
-  camera: Camera;      // Posição/zoom da câmera do momento
+  id: string | null;
+  level: number;
+  camera: { scale: number; translateX: number; translateY: number };
 }
 ```
 
-## Como evoluem durante a navegação
+Intermediate singleton levels are not pushed as separate history entries.
 
-### Estado em cada nível — Exemplo completo
+### `skippedLevels: string[]`
 
-**1. Início (ROOT)**
+Array of region IDs skipped automatically during the most recent resolved
+drill-down.
+
+| Aspect | Value |
+|---|---|
+| Type | `string[]` |
+| Purpose | Preserve the conceptual singleton levels crossed automatically by navigation |
+| Order | Outermost skipped level → innermost skipped level |
+| Empty state | `[]` when no singleton skip happened |
+
+`skippedLevels` is used by the breadcrumb layer so the UI can preserve the full
+conceptual path even when the camera jumps directly to a deeper visual target.
+
+## When `skippedLevels` is populated
+
+`skippedLevels` is written by `drillDown()` after `resolveSkipTarget()` runs.
+
 ```ts
-{ level: -1, focusedId: null, history: [] }
+const { finalId, skipped } = resolveSkipTarget(regionId, regions);
+nav.focusedId = finalId;
+nav.skippedLevels = skipped;
 ```
-O hitmap busca regiões com `parentId === null` em todas as layers.
 
-**2. Drill-down em `shed-north--ps`**
+That means it is populated immediately after a drill-down transition that
+crosses one or more singleton levels.
+
+## When `skippedLevels` is cleared
+
+At runtime, `skippedLevels` becomes `[]` in two important cases:
+
+1. When `drillUp()` reaches ROOT and `restoreSkippedLevels()` in `main.ts`
+   restores the root state, which has no focused region.
+2. During the reset flow, where `onReset()` explicitly sets
+   `nav.skippedLevels = []` after calling `resetView()`.
+
+If `drillUp()` returns to a previously visited focused region that already had a
+stored skipped chain, `main.ts` restores that skipped chain from
+`skippedLevelsByFocusId` instead of clearing it.
+
+## Example state transitions
+
+### 1. Initial ROOT state
+
 ```ts
-{
-  level: 0,
-  focusedId: "shed-north--ps",
-  history: [
-    { id: null, level: -1, camera: { scale: 0.5, translateX: 200, translateY: 50 } }
-  ]
-}
+{ level: -1, focusedId: null, history: [], skippedLevels: [] }
 ```
-O hitmap busca regiões com `parentId === "shed-north--ps"` na layer 1.
-O renderer mostra dimming + highlight do aviário.
 
-**3. Drill-down em `floor-01_lf`**
-```ts
-{
-  level: 1,
-  focusedId: "floor-01_lf",
-  history: [
-    { id: null, level: -1, camera: { scale: 0.5, translateX: 200, translateY: 50 } },
-    { id: "shed-north--ps", level: 0, camera: { scale: 1.2, translateX: -100, translateY: -80 } }
-  ]
-}
+### 2. Drill-down with singleton skip
+
+Suppose the hierarchy is:
+
 ```
-O hitmap busca regiões com `parentId === "floor-01_lf"` na layer 2.
+Feedlot--ps
+  └── market_animal--lf
+        └── holding--ph
+              ├── pen-a--ci
+              └── pen-b--ci
+```
 
-**4. Drill-down em `house-A--ph`**
+Clicking `Feedlot--ps` resolves directly to `holding--ph`.
+
 ```ts
 {
   level: 2,
-  focusedId: "house-A--ph",
+  focusedId: "holding--ph",
   history: [
-    { id: null, level: -1, camera: {/*...*/} },
-    { id: "shed-north--ps", level: 0, camera: {/*...*/} },
-    { id: "floor-01_lf", level: 1, camera: {/*...*/} }
-  ]
+    { id: null, level: -1, camera: { scale: 0.5, translateX: 200, translateY: 50 } }
+  ],
+  skippedLevels: ["market_animal--lf", "holding--ph"]
 }
 ```
-O hitmap busca regiões com `parentId === "house-A--ph"` na layer 3.
 
-**5. Drill-up de volta para `floor-01_lf`**
+### 3. Drill-down without singleton skip
+
 ```ts
 {
-  level: 1,
-  focusedId: "floor-01_lf",
+  level: 3,
+  focusedId: "pen-a--ci",
   history: [
-    { id: null, level: -1, camera: {/*...*/} },
-    { id: "shed-north--ps", level: 0, camera: {/*...*/} }
-  ]
+    { id: null, level: -1, camera: { scale: 0.5, translateX: 200, translateY: 50 } },
+    { id: "holding--ph", level: 2, camera: { scale: 1.8, translateX: -320, translateY: -140 } }
+  ],
+  skippedLevels: []
 }
 ```
-O último entry foi removido (pop). Câmera restaurada para o snapshot salvo.
 
-**6. Reset**
+### 4. Drill-up back to ROOT
+
 ```ts
-{ level: -1, focusedId: null, history: [] }
+{ level: -1, focusedId: null, history: [], skippedLevels: [] }
 ```
-Histórico inteiro limpo. Câmera recalculada para fit do SVG inteiro.
 
-## Onde é usado
+## Where it is used
 
-| Módulo          | Leitura / Escrita | Campos usados              |
-|-----------------|-------------------|----------------------------|
-| `navigation.ts` | Leitura + Escrita | `level`, `focusedId`, `history` |
-| `hitmap.ts`     | Leitura           | `level`, `focusedId`       |
-| `renderer.ts`   | Leitura           | `focusedId`                |
-| `events.ts`     | Leitura           | `level`, `focusedId`       |
-| `hud.ts`        | Leitura           | `level`, `focusedId`       |
-| `main.ts`       | Leitura + Escrita | Todos (inicialização)      |
+| Module | Read / Write | Fields used |
+|---|---|---|
+| `navigation.ts` | Read + Write | `level`, `focusedId`, `history`, `skippedLevels` |
+| `main.ts` | Read + Write | Initializes, stores, restores, and clears skip metadata |
+| `hitmap.ts` | Read | `level`, `focusedId` |
+| `renderer.ts` | Read | `focusedId` |
+| `hud.ts` | Read | `level`, `focusedId` |
 
-## Decisões arquiteturais
+## Architectural decisions
 
-### Por que level -1 para ROOT?
+### Why is ROOT represented by `level = -1`?
 
-O ROOT não é um nível da hierarquia do SVG — é a "ausência de foco". Usar -1 como sentinel torna as comparações no hitmap naturais: `if (nav.level === -1)` → modo root. Um enum seria mais explícito mas adicionaria verbosidade sem benefício prático.
+ROOT is not a real SVG hierarchy level. It represents the absence of a focused
+region, so `-1` is a practical sentinel value.
 
-### Por que mutable e não immutable/reducer?
+### Why is `NavState` mutable?
 
-O `NavState` é lido e escrito apenas em código síncrono (event handlers + render loop). Não há async interleaving que cause torn state. Mutação in-place é mais simples e performante que criar novos objetos a cada transição.
+Navigation updates happen in synchronous UI flows. Mutating the same state
+object keeps the code simple and avoids unnecessary state object churn.
 
-### Por que a câmera é salva como snapshot plain object?
+### Why is `skippedLevels` separate from `history`?
+
+`history` represents visited visual states. `skippedLevels` represents
+conceptual levels crossed automatically by singleton skip. Keeping them
+separate allows `drillUp()` to remain correct while the breadcrumb still shows
+the full conceptual path.
+
+### Why is camera stored as a plain snapshot?
 
 ```ts
 camera: { scale: camera.scale, translateX: camera.translateX, translateY: camera.translateY }
 ```
 
-Se o código salvasse a referência (`camera: camera`), drill-up restauraria o estado **atual** (que já mudou), não o estado do momento do drill-down. O spread/snapshot garante isolamento.
+If the code stored the live `camera` object by reference, the saved history
+entry would drift as the camera continued moving. A plain snapshot preserves the
+exact visual state that should be restored later.

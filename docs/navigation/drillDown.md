@@ -1,8 +1,10 @@
-# drillDown() — Avançar nível na hierarquia
+# drillDown() — Enter a region with singleton skip
 
-## O que faz
+## What it does
 
-Navega para dentro de uma região: salva o estado atual na pilha de histórico, atualiza o `NavState` para o novo nível/foco, solicita a geração de um DynamicTile, e calcula a câmera-alvo para enquadrar a região.
+`drillDown()` resolves the effective navigation target for a click, stores the
+previous visual state in history, updates `NavState`, requests the appropriate
+dynamic tile, and computes the next target camera.
 
 ```ts
 export function drillDown(
@@ -17,66 +19,51 @@ export function drillDown(
 ): void
 ```
 
-## Por que existe
+## Why it exists
 
-O drill-down é a ação principal do usuário — clicar numa região para ver seus detalhes. A função coordena 4 operações que devem acontecer juntas: backup do estado, atualização do nav, solicitação de tile, e cálculo da câmera.
+Drill-down is the main navigation action of the viewer. The user clicks a
+visible region and expects the engine to focus the next meaningful level. The
+function coordinates every piece of that transition in one place: target
+resolution, history snapshot, state mutation, tile request, and camera target.
 
-## Como funciona
+## How it works
 
-### Passo 1 — Construir path da raiz até o alvo
+### Step 1 — Resolve the effective target before mutating state
 
-```ts
-const path: string[] = [];
-let current: Region | undefined = regions.get(regionId);
-while (current) {
-  path.unshift(current.id);
-  current = current.parentId ? regions.get(current.parentId) : undefined;
-}
-```
-
-Se o usuário clicou em `cage-01--ci`, o path seria:
-```
-["shed-north--ps", "floor-01_lf", "house-A--ph", "cage-01--ci"]
-```
-
-Isso é necessário porque o drill-down avança **um nível por vez**. Se o usuário está no ROOT e clica numa gaiola (ci), a função precisa avançar primeiro para o aviário (ps).
-
-### Passo 2 — Determinar o próximo passo
+The function starts by calling `resolveSkipTarget()`.
 
 ```ts
-let nextStepIndex = 0;
-if (nav.focusedId !== null) {
-  const idx = path.indexOf(nav.focusedId);
-  if (idx >= 0) {
-    nextStepIndex = idx + 1;
-  } else {
-    nextStepIndex = 0;
-  }
-}
-
-if (nextStepIndex >= path.length) return;
-
-const nextId = path[nextStepIndex];
+const { finalId, skipped } = resolveSkipTarget(regionId, regions);
 ```
 
-- Se está no ROOT → avança para o primeiro elemento do path (nível ps)
-- Se está focado num elemento do path → avança para o próximo
-- Se já está no último → não faz nada (`return`)
+This happens before any history write or camera calculation. If the clicked
+region is followed by a chain of singleton levels, `finalId` becomes the final
+resolved region and `skipped` contains the skipped IDs in outermost-to-
+innermost order.
 
-### Passo 3 — Validar bbox
+If no singleton skip is needed:
+
+- `finalId === regionId`
+- `skipped === []`
+
+### Step 2 — Look up and validate the resolved region
 
 ```ts
+const nextRegion = regions.get(finalId);
+if (!nextRegion) return;
+
 if (!nextRegion.bbox ||
     nextRegion.bbox.width < 0.1 ||
     nextRegion.bbox.height < 0.1) {
-  console.warn('[drillDown] bbox inválido para:', nextId);
+  console.warn('[drillDown] bbox inválido para:', finalId);
   return;
 }
 ```
 
-Protege contra regiões com bbox degenerado (largura ou altura quase zero), que causariam zoom infinito.
+The bbox validation applies to the resolved target, not necessarily the clicked
+ID.
 
-### Passo 4 — Salvar estado atual (backup)
+### Step 3 — Push one history snapshot
 
 ```ts
 nav.history.push({
@@ -90,31 +77,31 @@ nav.history.push({
 });
 ```
 
-O estado **antes** da transição é salvo na pilha de histórico:
-- `id` — região que estava focada (ou `null` se ROOT)
-- `level` — nível em que estava
-- `camera` — snapshot da câmera (posição e zoom exatos)
+Only one snapshot is pushed per resolved transition. Intermediate singleton
+levels are not stored as visited visual states.
 
-Esse snapshot permite que `drillUp()` restaure exatamente o que o usuário via antes.
-
-### Passo 5 — Atualizar NavState
+### Step 4 — Update `NavState`
 
 ```ts
 nav.level = nextRegion.level;
-nav.focusedId = nextId;
+nav.focusedId = finalId;
+nav.skippedLevels = skipped;
 ```
 
-Muta o NavState in-place para refletir o novo nível e foco.
+This is the point where singleton skip becomes visible in state:
 
-### Passo 6 — Solicitar DynamicTile
+- `finalId` becomes the real focus
+- `skipped` is stored in `nav.skippedLevels`
+
+### Step 5 — Request the resolved dynamic tile
 
 ```ts
-onTileNeeded(nextId);
+onTileNeeded(finalId);
 ```
 
-Callback para o `main.ts`, que inicia a geração assíncrona do `DynamicTile` — uma rasterização em alta resolução apenas da região focada.
+The rasterizer is asked for the final resolved region only.
 
-### Passo 7 — Calcular câmera-alvo
+### Step 6 — Compute the target camera
 
 ```ts
 const newCam = bboxToCamera(nextRegion.bbox, canvasW, canvasH);
@@ -125,29 +112,42 @@ target.setTransform(
 );
 ```
 
-Calcula uma câmera que enquadra o bbox da região no canvas (com padding de 90%) e seta como `target`. O loop de animação interpolará `camera` em direção a `target`.
+The camera is also computed from the resolved target, so the animation lands on
+the same region that became the new focus.
 
-## Parâmetros
+## Singleton skip integration
 
-| Parâmetro      | Tipo                        | Descrição                               |
-|----------------|-----------------------------|-----------------------------------------|
-| `regionId`     | `string`                    | ID da região clicada pelo usuário       |
-| `nav`          | `NavState`                  | Estado de navegação (mutado in-place)   |
-| `regions`      | `Map<string, Region>`       | Mapa de regiões do parser               |
-| `camera`       | `Camera`                    | Câmera atual (lida para snapshot)       |
-| `target`       | `Camera`                    | Câmera-alvo (setada para animação)      |
-| `canvasW`      | `number`                    | Largura do canvas                       |
-| `canvasH`      | `number`                    | Altura do canvas                        |
-| `onTileNeeded` | `(id: string) => void`      | Callback para solicitar DynamicTile     |
+Singleton skip is fully integrated into `drillDown()`.
 
-## Retorno
+At the beginning of the function:
 
-`void` — muta `nav` e `target` in-place.
+- `resolveSkipTarget()` is called before any state mutation
+- `finalId` replaces the original clicked ID as the navigation target
+- `skipped` is written to `nav.skippedLevels`
 
-## Exemplos de uso
+This allows the breadcrumb to preserve conceptual levels even when the camera
+and focus jump directly to a deeper node.
+
+## Parameters
+
+| Parameter | Type | Meaning |
+|---|---|---|
+| `regionId` | `string` | The region ID received from the click flow |
+| `nav` | `NavState` | Mutable navigation state |
+| `regions` | `Map<string, Region>` | Parsed region map |
+| `camera` | `Camera` | Current camera, used for the history snapshot |
+| `target` | `Camera` | Target camera updated for the next animation |
+| `canvasW` | `number` | Canvas width |
+| `canvasH` | `number` | Canvas height |
+| `onTileNeeded` | `(id: string) => void` | Callback that requests the dynamic tile for the resolved target |
+
+## Return value
+
+`void` — the function mutates `nav` and `target` in place.
+
+## Example usage
 
 ```ts
-// main.ts
 function onDrillDown(regionId: string): void {
   drillDown(regionId, nav, regions, camera, target,
     window.innerWidth, window.innerHeight, onTileNeeded);
@@ -156,20 +156,33 @@ function onDrillDown(regionId: string): void {
 }
 ```
 
-## Dependências
+## Dependencies
 
-| Direção    | Módulo        | Relação                              |
-|------------|---------------|--------------------------------------|
-| Importa    | `camera.ts`   | `bboxToCamera()` para target         |
-| Importa    | `types.ts`    | `NavState`, `Region`, `Camera`       |
-| Chamado por | `main.ts`    | Via callback `onDrillDown`           |
+| Direction | Module | Relationship |
+|---|---|---|
+| Imports | `camera.ts` | Uses `bboxToCamera()` to compute the target camera |
+| Imports | `types.ts` | Uses `NavState`, `Region`, and `Camera`-related types |
+| Uses | `resolveSkipTarget()` | Resolves singleton chains before any state mutation |
+| Called by | `main.ts` | Triggered through the `onDrillDown()` callback |
 
-## Decisões arquiteturais
+## Architectural decisions
 
-### Por que path walking em vez de drill direto?
+### Why resolve singleton skip inside `drillDown()`?
 
-Se o usuário está no ROOT e clica numa região ci (nível 3), não faz sentido pular direto 3 níveis — o dimming e o highlight seriam confusos. O path walking garante drill-down incremental: ROOT → ps → lf → ph → ci, um nível por clique.
+The parser should describe hierarchy, not presentation. The click handler
+should only report the clicked region. `drillDown()` is the correct place to
+apply the product rule that singleton levels should be skipped during
+navigation.
 
-### Por que onTileNeeded é callback?
+### Why is `skippedLevels` not pushed into history?
 
-A geração do `DynamicTile` é assíncrona e gerenciada pelo `main.ts` (que tem referência ao `rasterizerConfig` e `dynamicCache`). O `navigation.ts` não precisa saber desses detalhes — ele apenas sinaliza que um tile é necessário.
+History represents visited visual states. Singleton levels crossed
+automatically were not shown as standalone visual states, so storing them as
+history entries would make `drillUp()` stop in places the user never actually
+visited.
+
+### Why is `onTileNeeded` still a callback?
+
+Dynamic tile generation remains owned by `main.ts`, where the rasterizer
+configuration and caches live. `drillDown()` only signals which resolved region
+needs a tile.

@@ -1,36 +1,39 @@
-# ARCHITECTURE.md — Visão geral do WelfareData Canvas Navigator
+# ARCHITECTURE.md — Overview of the WelfareData Canvas Navigator
 
-## O que é
+## What it is
 
-O WelfareData Canvas Navigator é um visualizador interativo de plantas de aviários em SVG. O usuário carrega um SVG com regiões hierarquicamente nomeadas (aviários → pisos → galpões → gaiolas) e pode navegar por drill-down/drill-up, com animações suaves e hit-testing pixel-perfect.
+The WelfareData Canvas Navigator is an interactive SVG processogram viewer
+implemented on top of Canvas 2D. The user loads an SVG whose regions encode a
+hierarchy and can navigate through that hierarchy with drill-down, drill-up,
+breadcrumb navigation, smooth camera animation, and pixel-perfect hit-testing.
 
-## Diagrama do fluxo de dados
+## Data flow diagram
 
 ```
-SVG File (upload ou drag & drop)
+SVG File (upload or drag and drop)
   │
   ▼
 parseSvg()                              [parser.ts]
-  ├─ regions: Map<string, Region>       → mapa de regiões navegáveis
-  ├─ svgWidth, svgHeight                → dimensões canônicas do SVG
-  └─ suspiciousIds                      → audit de IDs (via auditRegions())
+  ├─ regions: Map<string, Region>       → navigable region map
+  ├─ svgWidth, svgHeight                → canonical SVG dimensions
+  └─ suspiciousIds                      → ID audit output (via auditRegions())
   │
   ▼
 loadSvgImage()                          [main.ts]
-  └─ svgImage: HTMLImageElement         → imagem para rasterização
+  └─ svgImage: HTMLImageElement         → image used for rasterization
   │
   ▼
 buildRasterCache()                      [rasterizer.ts]
-  ├─ low: HTMLCanvasElement (1×)        → tier de zoom normal
-  └─ mid: HTMLCanvasElement (4×)        → tier de zoom próximo
+  ├─ low: HTMLCanvasElement (1×)        → normal zoom tier
+  └─ mid: HTMLCanvasElement (4×)        → near zoom tier
   │
   ▼
 hitmap.build()                          [hitmap.ts]
   ├─ computeHash(svgText) → SHA-1 cache key
   ├─ loadFromCache(hash)  → IndexedDB lookup
-  │   └─ cache hit: reconstituir layers → skip rasterização
+  │   └─ cache hit: restore layers      → skip rasterization
   ├─ fallbackToRasterize() → 4 HitLayers (Int32Array id grids)
-  └─ saveToCache(hash)    → persistir no IndexedDB
+  └─ saveToCache(hash)    → persist to IndexedDB
   │
   ▼
 setupCanvas() + setupEvents()           [main.ts, events.ts]
@@ -42,14 +45,14 @@ setupCanvas() + setupEvents()           [main.ts, events.ts]
 ║                                                               ║
 ║  ┌──────────────────────────────────────────────────────┐    ║
 ║  │  animateCamera(camera, target)        [camera.ts]    │    ║
-║  │  └─ camera.setTransform() — lerp ou snap             │    ║
+║  │  └─ camera.setTransform() — lerp or snap             │    ║
 ║  └──────────────────────────────────────────────────────┘    ║
 ║                         │                                     ║
 ║                         ▼                                     ║
 ║  ┌──────────────────────────────────────────────────────┐    ║
 ║  │  renderer.render()                    [renderer.ts]  │    ║
-║  │  ├─ modo root: drawImage(low ou mid)                 │    ║
-║  │  └─ modo focado: dim + dynamicTile                   │    ║
+║  │  ├─ root mode: drawImage(low or mid)                │    ║
+║  │  └─ focused mode: dim + dynamicTile                 │    ║
 ║  └──────────────────────────────────────────────────────┘    ║
 ║                         │                                     ║
 ║                         ▼                                     ║
@@ -59,157 +62,190 @@ setupCanvas() + setupEvents()           [main.ts, events.ts]
 ║  └──────────────────────────────────────────────────────┘    ║
 ╚═══════════════════════════════════════════════════════════════╝
           │
-          │  (eventos do usuário)
+          │  (user events)
           ▼
   ┌─────────────────────────────────────────────────────────┐
   │  mousemove → hitmap.getRegionAt() → tooltip             │
   │  click     → hitmap.getRegionAt()                       │
-  │             ├─ região encontrada → drillDown()          │
-  │             └─ área vazia        → drillUp()            │
-  │  ESC       → drillUp()                                  │
-  │  R         → resetView()                                │
-  │  resize    → redimensionar canvas + needsRedraw         │
+  │             ├─ region found      → drillDown()          │
+  │             │                      ├─ resolveSkipTarget() before camera target
+  │             │                      └─ renderBreadcrumb() → update DOM overlay
+  │             └─ empty area        → drillUp() → renderBreadcrumb() │
+  │  ESC       → drillUp() → renderBreadcrumb()            │
+  │  R         → resetView() → renderBreadcrumb()          │
+  │  resize    → resize canvas + needsRedraw                │
   └─────────────────────────────────────────────────────────┘
 ```
 
-## Módulos e suas responsabilidades
+## Modules and responsibilities
 
-| Módulo           | Arquivo         | Responsabilidade                                    |
-|------------------|-----------------|-----------------------------------------------------|
-| **Parser**       | `parser.ts`     | Extrair regiões, dimensões e hierarquia do SVG      |
-| **Audit**        | `audit.ts`      | Detectar IDs suspeitos (backgrounds, canvas)        |
-| **Camera**       | `camera.ts`     | Estado de zoom/pan, Dirty Flag, interpolação        |
-| **HitMap**       | `hitmap.ts`     | Hit-testing pixel-perfect via Grid de IDs + cache IndexedDB |
-| **Renderer**     | `renderer.ts`   | Desenhar frames no canvas principal                 |
-| **Rasterizer**   | `rasterizer.ts` | Pré-rasterizar SVG em tiers + tiles dinâmicos       |
-| **Navigation**   | `navigation.ts` | Drill-down/up/reset com histórico                   |
-| **Events**       | `events.ts`     | Handlers de mouse, teclado, resize                  |
-| **HUD**          | `hud.ts`        | Overlay de debug (FPS, nível, scale, tier)          |
-| **Types**        | `types.ts`      | Interfaces e constantes compartilhadas              |
-| **Main**         | `main.ts`       | Orquestração, estado global, rAF loop               |
+| Module | File | Responsibility |
+|---|---|---|
+| **Parser** | `parser.ts` | Extract regions, dimensions, and hierarchy from the SVG |
+| **Audit** | `audit.ts` | Detect suspicious IDs such as background wrappers |
+| **Camera** | `camera.ts` | Hold zoom/pan state, dirty flag logic, and interpolation |
+| **HitMap** | `hitmap.ts` | Pixel-perfect hit-testing through ID grids and IndexedDB cache |
+| **Renderer** | `renderer.ts` | Draw frames to the main canvas |
+| **Rasterizer** | `rasterizer.ts` | Pre-rasterize tiers and build dynamic tiles |
+| **Navigation** | `navigation.ts` | Drill-down, drill-up, reset, breadcrumb building, and singleton skip resolution |
+| **Events** | `events.ts` | Mouse, keyboard, and resize handlers |
+| **HUD** | `hud.ts` | Debug overlay with FPS, level, focus, and tier |
+| **Types** | `types.ts` | Shared interfaces and constants |
+| **Main** | `main.ts` | Runtime orchestration, shared state, breadcrumb rendering, and render loop |
 
-## Decisões arquiteturais principais
+## Main architectural decisions
 
-### 1. Por que Canvas 2D ao invés de DOM SVG?
+### 1. Why Canvas 2D instead of DOM SVG?
 
-**Problema**: SVGs de aviários podem ter milhares de elementos. Manipular o DOM SVG diretamente (pan/zoom via CSS transforms, hover via CSS :hover) é lento porque:
-- Cada mudança de `transform` recalcula layout de todos os elementos
-- Browsers re-renderizam o SVG inteiro a cada frame durante pan/zoom
-- Hit-testing via `elementFromPoint()` percorre a árvore DOM
+**Problem**: large processograms can contain thousands of SVG elements. Moving
+that structure directly in the DOM is slow because layout, painting, and DOM
+hit-testing all stay on the hot path.
 
-**Solução**: Rasterizar o SVG em bitmaps (canvas) e usar Canvas 2D para renderização:
-- `drawImage()` de bitmap é O(1) — nenhuma interpretação de geometria
-- Pan/zoom via `ctx.setTransform()` é instantâneo — apenas muda a matriz
-- O overhead é mover pixels, não interpretar vetores
+**Solution**: rasterize the SVG into bitmap tiers and render through Canvas 2D.
+That turns the hot path into fast image drawing plus matrix transforms.
 
-**Trade-off**: Perde-se a capacidade de estilizar elementos individuais via CSS. O sistema compensa com DynamicTiles (rasterização sob demanda da região focada).
+**Trade-off**: individual SVG nodes are no longer styled live with CSS. The
+system compensates with dynamic tiles and focused rendering.
 
-### 2. Por que hit-testing por cor com Grid de IDs pré-computado?
+### 2. Why color-based hit-testing with precomputed ID grids?
 
-**Problema com bbox**: Bounding boxes são retangulares. Regiões de SVGs de aviários frequentemente têm formas irregulares (paredes em L, corredores, áreas recortadas). Hit-testing por bbox retornaria positivo em áreas vazias dentro do retângulo envolvente.
+**Problem with bbox-only hit-testing**: bounding boxes are rectangular, but the
+real SVG geometry is often irregular.
 
-**Solução por cor + idGrid**: Cada região é pintada com uma cor única em um canvas temporário. Durante o `build()`, todos os pixels são extraídos numa única passada e decodificados para um `Int32Array` (Grid de IDs). Consultas em `getRegionAt()`/`hasRegionAt()` são um simples `array[offset]`:
-- Pixel-perfect — respeita a geometria real do SVG
-- O(1) por consulta — lookup direto no `Int32Array`, sem `getImageData`
-- Zero-allocation — nenhum objeto criado no hot path do mousemove
-- Sem float imprecision — índices são inteiros de 32 bits
+**Solution**: each region is painted with a unique color during build time, and
+the resulting pixels are converted into `Int32Array` ID grids. Runtime lookups
+are then direct array reads.
 
-**Trade-off**: Requer 4 `Int32Array` extras na memória (um por nível). Com `HIT_SCALE = 0.5`, o custo é moderado. Os canvas temporários são destruídos após extração, liberando VRAM.
+**Trade-off**: the system keeps four extra ID grids in memory, one per level.
 
-### 3. Por que Dirty Flag na câmera?
+### 3. Why use a dirty flag in the camera?
 
-**Problema**: A matriz inversa da câmera (usada no hit-testing) é computed a partir de `scale/tx/ty`. Sem cache, seria recalculada a cada `mousemove` (60+ vezes/segundo) mesmo que a câmera não tenha se movido.
+**Problem**: the inverse camera matrix is needed often by hit-testing, but most
+frames do not change the camera.
 
-**Solução**: `_dirty` flag setada por `setTransform()`, consultada pelo getter `inverseMatrix`:
-- Se `_dirty === true`: recalcula e cachea
-- Se `_dirty === false`: retorna cache
+**Solution**: `setTransform()` marks the matrix dirty, and `inverseMatrix`
+recomputes only when needed.
 
-**Custo**: 1 boolean extra por instância de Camera. Economia: evita inversão de matriz em frames onde a câmera está parada.
+**Trade-off**: one extra boolean per camera instance, in exchange for avoiding
+unnecessary matrix inversion on static frames.
 
-### 4. Por que zero-allocation no hot path?
+### 4. Why zero-allocation on the hot path?
 
-**Problema**: `getRegionAt()` e `hasRegionAt()` são chamados em `mousemove` (60fps). Se cada chamada alocasse objetos temporários (ex: `{ x, y }` para coordenadas) ou chamasse `getImageData()` (que aloca `Uint8ClampedArray`), o garbage collector seria pressionado, causando micro-stutters.
+**Problem**: `getRegionAt()` and `hasRegionAt()` run on frequent interaction
+paths, especially mousemove.
 
-**Solução**: A conversão de coordenadas usa apenas multiplicações e somas com variáveis locais primitivas, e a consulta ao hitmap é um lookup direto num `Int32Array` pré-computado:
+**Solution**: coordinate conversion and hit lookup use only primitive math and
+precomputed arrays:
 
 ```ts
-const m    = camera.inverseMatrix;     // referência, não cópia
-const svgX = m.a * canvasX + m.c * canvasY + m.e;  // primitivo
-const svgY = m.b * canvasX + m.d * canvasY + m.f;  // primitivo
-const hitX = Math.round(svgX * this.hitScale);      // primitivo
-const hitY = Math.round(svgY * this.hitScale);      // primitivo
-const idx  = layer.pixels[hitY * layer.width + hitX]; // lookup direto
+const m    = camera.inverseMatrix;     // reference, not a copy
+const svgX = m.a * canvasX + m.c * canvasY + m.e;  // primitive
+const svgY = m.b * canvasX + m.d * canvasY + m.f;  // primitive
+const hitX = Math.round(svgX * this.hitScale);     // primitive
+const hitY = Math.round(svgY * this.hitScale);     // primitive
+const idx  = layer.pixels[hitY * layer.width + hitX]; // direct lookup
 ```
 
-Nenhum objeto é criado, nenhum `getImageData` é chamado — zero pressão no GC.
+No objects are allocated and no image reads happen at runtime.
 
-### 5. Por que normalização incondicional do viewBox?
+### 5. Why normalize `viewBox`, `width`, and `height`?
 
-**Problema**: SVGs exportados de diferentes editores (Inkscape, Illustrator, Figma) usam convenções diferentes:
-- Inkscape: `viewBox="0 0 210 297"` + `width="210mm"` (unidades em mm)
-- Illustrator: `viewBox` pode estar ausente, com width/height em px
-- Figma: `viewBox` e width/height em px, mas pode ter offset (viewBox não começa em 0,0)
+**Problem**: different SVG editors export inconsistent coordinate contracts.
 
-**Solução**: O parser e a hitmap forçam:
+**Solution**: parser and hitmap normalize the root SVG contract:
 ```ts
 svgRoot.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
 svgRoot.setAttribute('width', String(svgWidth));
 svgRoot.setAttribute('height', String(svgHeight));
 ```
 
-Isso cria um **contrato**: "o sistema de coordenadas é sempre [0, 0, W, H] em unidades abstratas". Todos os módulos downstream (hitmap, rasterizer, renderer) podem assumir esse contrato.
+This creates a stable coordinate contract for all downstream modules.
 
-**Trade-off**: Se o SVG tiver viewBox com offset (ex: `viewBox="100 200 800 600"`), a normalização usa os valores `800×600` do parser, preservando as dimensões corretas.
+The trade-off is that editor-specific root metadata is normalized away in favor
+of a single internal convention.
 
-### 6. Por que stretchFactor ao invés de scale fixo?
+### 6. Why use `stretchFactor` instead of a fixed scale threshold?
 
-**Problema**: Um threshold fixo (ex: "troca para mid quando `camera.scale > 4`") depende do tamanho do SVG:
-- SVG de 500px: scale 4 = 2000px em tela — pouco zoom
-- SVG de 4000px: scale 4 = 16000px em tela — zoom extremo
+**Problem**: a fixed scale threshold depends on the absolute size of the SVG.
 
-**Solução**: O `stretchFactor` é uma **razão** entre o tamanho em tela e o tamanho do tier:
+**Solution**: `stretchFactor` measures how much the current tier is being
+stretched on screen:
 
 $$
 stretchFactor = \frac{svgWidth \times camera.scale}{rasterCache.low.width}
 $$
 
-Se o valor > 1.5, o tier low está sendo esticado — hora de trocar para mid. Essa fórmula é auto-adaptativa para qualquer tamanho de SVG.
+When the factor exceeds `1.5`, the low tier is being stretched enough that the
+mid tier should take over.
 
-### 7. Por que Audit Layer separado do parser?
+### 7. Why keep the audit layer separate from the parser?
 
-**Problema**: O parser precisa extrair regiões. A detecção de IDs suspeitos é uma preocupação diferente — é validação, não parsing.
+**Problem**: region extraction and suspicious-ID validation are different
+concerns.
 
-**Solução**: `audit.ts` é um módulo dedicado que recebe o `Map<string, Region>` e retorna uma lista de IDs suspeitos. O parser chama `auditRegions()` no final mas não depende do resultado para funcionar.
+**Solution**: `audit.ts` stays independent and receives the parsed region map.
 
-**Benefícios**:
-- O audit pode evoluir independentemente (novos padrões, config, severity levels)
-- Pode ser desabilitado sem tocar no parser
-- Testável em isolamento
+Benefits:
 
-### 8. Por que persistência do idGrid via IndexedDB?
+- the audit can evolve independently
+- it can be disabled without rewriting parsing
+- it remains testable in isolation
 
-**Problema**: O pipeline de rasterização da hitmap (criar canvas, clonar SVG, colorir regiões, Blob→Image→drawImage→getImageData) pode levar centenas de milissegundos para SVGs grandes. Esse custo é pago a cada carregamento da página, mesmo que o SVG não tenha mudado.
+### 8. Why persist the ID grids through IndexedDB?
 
-**Solução**: O `build()` foi refatorado para um orquestrador com 4 etapas:
-1. Computa hash SHA-1 do SVG via `crypto.subtle`
-2. Tenta carregar layers do IndexedDB (`loadFromCache()`)
-3. Em caso de cache miss, executa rasterização completa (`fallbackToRasterize()`)
-4. Persiste layers no IndexedDB (`saveToCache()`)
+**Problem**: building the hitmap can be expensive for large SVGs.
 
-O banco IndexedDB `welfaredata-hitmap` armazena os layers serializados (Int32Array → number[], Map → Array de tuplas) com o hash SHA-1 como keyPath.
+**Solution**: `build()` follows a cache-first orchestration flow:
+1. Compute the SVG SHA-1 hash through `crypto.subtle`
+2. Try to load cached layers from IndexedDB (`loadFromCache()`)
+3. On cache miss, run full rasterization (`fallbackToRasterize()`)
+4. Persist the resulting layers back into IndexedDB (`saveToCache()`)
 
-**Trade-offs**:
-- Custo de armazenamento: ~25-40 MB por SVG (4 layers de 800K pixels cada, serializados como number[])
-- O IndexedDB suporta centenas de MB — aceitável para dezenas de SVGs
-- Falhas do IndexedDB são silenciosas — o sistema funciona sem cache
-- SHA-1 não é seguro criptograficamente, mas é perfeito para detecção de mudanças
-- `crypto.subtle` requer contexto seguro (HTTPS ou localhost)
+The `welfaredata-hitmap` IndexedDB store keeps serialized layers keyed by the
+SVG SHA-1 hash.
 
-## Estrutura de documentação
+Trade-offs:
+
+- extra local storage usage per SVG
+- silent fallback when IndexedDB fails
+- SHA-1 is used for change detection, not cryptographic security
+- `crypto.subtle` requires a secure context such as HTTPS or localhost
+
+### 9. Why does singleton skip live in the navigation engine?
+
+The SVG keeps the full conceptual hierarchy because that structure is part of
+the data model. The navigation engine, however, is responsible for deciding how
+to present that hierarchy efficiently.
+
+That leads to a specific rule:
+
+- singleton levels are skipped during navigation when they add no branching
+  choice and no meaningful visible change
+- those levels are still preserved conceptually through breadcrumb state
+
+This keeps the source SVG semantically complete while removing unnecessary
+clicks from the interaction model.
+
+### 10. Why is the breadcrumb reconstructed from `parentId` instead of a separate history?
+
+The breadcrumb is derived dynamically from the region graph through the
+`parentId` chain and the current `focusedId`. It is not stored as a second
+navigation history.
+
+This decision keeps the breadcrumb consistent with the actual data model even
+when the user navigates through drill-down, drill-up, reset, or direct
+breadcrumb clicks.
+
+Singleton levels skipped during drill-down remain visible and accessible in the
+breadcrumb because that was an explicit product requirement. The UI therefore
+preserves the full conceptual path without reintroducing unnecessary clicks in
+the primary navigation flow.
+
+## Documentation structure
 
 ```
 docs/
-├── ARCHITECTURE.md          ← este arquivo
+├── ARCHITECTURE.md          ← this file
 ├── camera/
 │   ├── Camera.md
 │   ├── setTransform.md
@@ -238,6 +274,8 @@ docs/
 │   └── Region.md
 ├── navigation/
 │   ├── navigation.md
+│   ├── breadcrumb.md
+│   ├── resolveSkipTarget.md
 │   ├── drillDown.md
 │   ├── drillUp.md
 │   └── resetView.md

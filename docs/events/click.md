@@ -1,52 +1,64 @@
 # events — click handler
 
-## O que faz
+## What it does
 
-O handler de `click` traduz um clique no canvas numa acção de navegação hierárquica:
+The `click` handler translates a canvas click into a navigation action:
 
-- **Clique numa região válida** (nível < 3) → `onDrillDown(regionId)` — desce um nível
-- **Clique no vazio** (sem nenhuma região sob o pixel) → `onDrillUp()` — sobe um nível
-- **Clique numa região no nível máximo** (nível 3 = `ci`) → nenhuma acção (drill-down bloqueado)
+- **Click on a valid region** (`nav.level < 3`) → `onDrillDown(regionId)`
+- **Click on empty space** → `onDrillUp()`
+- **Click at maximum depth** (`ci`) → no drill-down
 
-## Por que existe
+## Why it exists
 
-O clique é o modo principal de navegação na hierarquia `ps → lf → ph → ci`. A lógica está encapsulada dentro de `setupEvents` para manter o módulo `events.ts` auto-contido e desacoplado de `main.ts`.
+Click is the main entry point into the hierarchical navigation model. The event
+handler is intentionally small: it decides whether a region was clicked and
+delegates the actual navigation transition to the callbacks owned by `main.ts`.
 
-## Como funciona
+## How it works
 
-```
-Clique no canvas
+```text
+Canvas click
   │
-  ├─ getBoundingClientRect() → coordenadas CSS
-  │    canvasX = clientX - rect.left
-  │    canvasY = clientY - rect.top
-  │
+  ├─ getBoundingClientRect() -> CSS-space canvas coordinates
   ├─ hitmap.getRegionAt(canvasX, canvasY, camera, nav)
-  │    └─ devolve regionId | null
+  │    └─ returns regionId | null
   │
-  ├─ SE regionId existe E nav.level < 3
-  │    └─ onDrillDown(regionId)     // desce na hierarquia
+  ├─ if regionId exists and nav.level < 3
+  │    └─ onDrillDown(regionId)
+  │          └─ drillDown() resolves singleton skip internally
   │
-  └─ SE regionId é null
-       ├─ hitmap.hasRegionAt(canvasX, canvasY, camera, nav)
-       │    └─ devolve boolean
-       └─ SE !hasAny
-            └─ onDrillUp()          // sobe na hierarquia
+  └─ if regionId is null
+       ├─ hitmap.hasRegionAt(...)
+       └─ if false
+            └─ onDrillUp()
 ```
 
-### Detalhe das coordenadas
+### Coordinate handling
 
-O handler converte `clientX`/`clientY` (coordenadas da viewport do browser) em coordenadas do canvas CSS via `getBoundingClientRect()`. Estas coordenadas CSS são depois convertidas em coordenadas de mundo internamente pelo `HitMap` (que aplica a transformação inversa da câmara).
+The handler converts `clientX` and `clientY` into canvas CSS coordinates using
+`getBoundingClientRect()`. The hitmap then converts those values into world
+coordinates through the inverse camera transform.
 
-### Guard: nível máximo
+### Maximum-depth guard
 
-O `nav.level < 3` impede drill-down além do nível `ci` (o nível mais profundo da hierarquia). Se o utilizador clicar numa região estando já no nível 3, nada acontece — o clique é silenciosamente ignorado.
+The condition `nav.level < 3` prevents drill-down beyond `ci`, the deepest
+navigation level.
 
-### Guard: clique com região parcial
+### Singleton skip behavior
 
-Se `getRegionAt` devolver `null` mas `hasRegionAt` devolver `true`, o clique caiu numa zona onde existe *alguma* região visível mas não identificável de forma precisa (ex.: borda entre regiões). Neste caso, o handler **não** faz drill-up — protege contra drill-ups acidentais.
+The click handler does **not** decide which levels are skipped. It only forwards
+the clicked `regionId` to `onDrillDown()`. The singleton resolution happens
+inside `navigation.ts`, where `drillDown()` calls `resolveSkipTarget()` before
+mutating any state.
 
-## Código fonte
+### Ambiguous click guard
+
+If `getRegionAt()` returns `null` but `hasRegionAt()` returns `true`, the click
+landed on a pixel where something exists visually but no exact region can be
+resolved. In that case the handler does not trigger `drillUp()`, preventing
+accidental navigation out of the current level.
+
+## Source shape
 
 ```ts
 canvas.addEventListener('click', (e: MouseEvent) => {
@@ -54,12 +66,6 @@ canvas.addEventListener('click', (e: MouseEvent) => {
   const canvasX = e.clientX - rect.left;
   const canvasY = e.clientY - rect.top;
   const regionId = hitmap.getRegionAt(canvasX, canvasY, camera, nav);
-
-  console.log('[click] canvasX:', canvasX.toFixed(0), 'canvasY:', canvasY.toFixed(0),
-    '| regionId:', regionId,
-    '| nav.level:', nav.level,
-    '| nav.focusedId:', nav.focusedId,
-    '| hasAny:', hitmap.hasRegionAt(canvasX, canvasY, camera, nav));
 
   if (regionId && nav.level < 3) {
     onDrillDown(regionId);
@@ -72,52 +78,43 @@ canvas.addEventListener('click', (e: MouseEvent) => {
 });
 ```
 
-> **Nota:** Os `console.log` são diagnósticos de desenvolvimento e registam todas as coordenadas e estado relevante de cada clique.
+## Parameters involved
 
-## Parâmetros utilizados
-
-| Parâmetro | Papel no handler |
+| Parameter | Role in the handler |
 |---|---|
-| `canvas` | Alvo do listener, fonte de `getBoundingClientRect()` |
-| `hitmap` | `getRegionAt()` e `hasRegionAt()` — traduz pixel em região |
-| `camera` | Passado ao hitmap para transformação de coordenadas |
-| `nav` | `nav.level` — guarda que impede drill-down acima do nível 3 |
-| `onDrillDown` | Callback invocado com `regionId` quando uma região válida é clicada |
-| `onDrillUp` | Callback invocado quando o clique cai no vazio total |
+| `canvas` | Event target and coordinate reference |
+| `hitmap` | Resolves region hits and empty-space checks |
+| `camera` | Passed to the hitmap for coordinate transforms |
+| `nav` | Supplies the current depth guard |
+| `onDrillDown` | Receives the clicked region ID |
+| `onDrillUp` | Receives empty-space navigation requests |
 
-## Exemplo de uso concreto
+## Example
 
-```
-Estado: nav.level = 1 (lf), focusedId = "lf_01"
-Utilizador clica num pen-house visível
+```text
+State: nav.level = 0, focusedId = "Feedlot--ps"
+User clicks a region whose effective path contains singleton levels
 
-→ hitmap.getRegionAt(320, 210, camera, nav) = "ph_03"
-→ nav.level (1) < 3 ✓
-→ onDrillDown("ph_03")
-→ nav transiciona para level=2, focusedId="ph_03"
-```
-
-```
-Estado: nav.level = 2 (ph), focusedId = "ph_03"
-Utilizador clica numa zona sem regiões
-
-→ hitmap.getRegionAt(500, 400, camera, nav) = null
-→ hitmap.hasRegionAt(500, 400, camera, nav) = false
-→ onDrillUp()
-→ nav transiciona para level=1, focusedId="lf_01"
+-> hitmap.getRegionAt(...) = "market_animal--lf"
+-> onDrillDown("market_animal--lf")
+-> drillDown() resolves the final target and updates nav.skippedLevels
 ```
 
-## Dependências
+## Dependencies
 
-| Módulo | Função | Utilização |
+| Module | Function | Use |
 |---|---|---|
-| `hitmap.ts` | `getRegionAt()` | Identifica a região sob o pixel clicado |
-| `hitmap.ts` | `hasRegionAt()` | Verifica se *alguma* região existe sob o pixel (sem obrigar identificação exacta) |
+| `hitmap.ts` | `getRegionAt()` | Identifies the clicked region |
+| `hitmap.ts` | `hasRegionAt()` | Distinguishes empty space from ambiguous clicks |
+| `navigation.ts` | `drillDown()` | Applies singleton skip after the click has been classified |
 
-## Decisões arquitecturais
+## Architectural decisions
 
-1. **Duas verificações no hitmap** — `getRegionAt` identifica a região exacta; `hasRegionAt` é um fallback booleano mais rápido. A separação permite distinguir "clicou no vazio" de "clicou numa zona ambígua entre regiões".
+1. **Two hitmap checks** — one exact lookup and one boolean fallback let the
+   handler distinguish empty clicks from ambiguous pixels.
 
-2. **Nível máximo hardcoded** — O guard `nav.level < 3` está directamente no handler em vez de no callback `onDrillDown`. Isto mantém a lógica de navegação explícita no ponto de decisão e evita chamadas desnecessárias ao callback.
+2. **Depth guard in the event layer** — the click handler blocks impossible
+   drill-down actions before they reach navigation.
 
-3. **Console.log de diagnóstico** — Cada clique gera um log detalhado com coordenadas, região identificada, nível actual e focusedId. Útil para debugging em tempo real durante development.
+3. **Singleton skip stays out of the event layer** — events decide *what was
+   clicked*; navigation decides *how that click should be presented*.

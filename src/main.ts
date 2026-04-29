@@ -10,7 +10,7 @@ import { Hud } from './hud';
 import { setupEvents } from './events';
 
 // ── State ──
-let nav: NavState = { level: -1, focusedId: null, history: [] };
+let nav: NavState = { level: -1, focusedId: null, history: [], skippedLevels: [] };
 let camera = new Camera();
 let target = new Camera();
 let rasterCache: RasterCache = { low: null, mid: null };
@@ -132,7 +132,7 @@ async function handleFile(file: File): Promise<void> {
     fit.translateY
   );
 
-  nav = { level: -1, focusedId: null, history: [] };
+  nav = { level: -1, focusedId: null, history: [], skippedLevels: [] };
 
   setupEvents(
     mainCanvas, hitmap, nav, regions,
@@ -285,7 +285,7 @@ function cleanup(): void {
   }
   dynamicCache.clear();
 
-  nav = { level: -1, focusedId: null, history: [] };
+  nav = { level: -1, focusedId: null, history: [], skippedLevels: [] };
   camera = new Camera();
   target = new Camera();
   regions = new Map();

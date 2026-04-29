@@ -2,6 +2,33 @@ import type { NavState, Region } from './types';
 import { bboxToCamera } from './camera';
 import type { Camera } from './camera';
 
+function resolveSkipTarget(
+  regionId: string,
+  regions: Map<string, Region>
+): { finalId: string; skipped: string[] } {
+  let onlyChildId: string | null = null;
+
+  for (const region of regions.values()) {
+    if (region.parentId !== regionId) continue;
+
+    if (onlyChildId !== null) {
+      return { finalId: regionId, skipped: [] };
+    }
+
+    onlyChildId = region.id;
+  }
+
+  if (onlyChildId === null) {
+    return { finalId: regionId, skipped: [] };
+  }
+
+  const resolved = resolveSkipTarget(onlyChildId, regions);
+  return {
+    finalId: resolved.finalId,
+    skipped: [onlyChildId, ...resolved.skipped],
+  };
+}
+
 export function drillDown(
   regionId: string,
   nav: NavState,
@@ -12,34 +39,15 @@ export function drillDown(
   canvasH: number,
   onTileNeeded: (id: string) => void
 ): void {
-  const path: string[] = [];
-  let current: Region | undefined = regions.get(regionId);
-  while (current) {
-    path.unshift(current.id);
-    current = current.parentId ? regions.get(current.parentId) : undefined;
-  }
-
-  let nextStepIndex = 0;
-  if (nav.focusedId !== null) {
-    const idx = path.indexOf(nav.focusedId);
-    if (idx >= 0) {
-      nextStepIndex = idx + 1;
-    } else {
-      nextStepIndex = 0;
-    }
-  }
-
-  if (nextStepIndex >= path.length) return;
-
-  const nextId = path[nextStepIndex];
-  const nextRegion = regions.get(nextId);
+  const { finalId, skipped } = resolveSkipTarget(regionId, regions);
+  const nextRegion = regions.get(finalId);
   if (!nextRegion) return;
 
   // Garantir que bbox existe e é válido antes de zoom
   if (!nextRegion.bbox ||
       nextRegion.bbox.width < 0.1 ||
       nextRegion.bbox.height < 0.1) {
-    console.warn('[drillDown] bbox inválido para:', nextId);
+    console.warn('[drillDown] bbox inválido para:', finalId);
     return;
   }
 
@@ -50,9 +58,10 @@ export function drillDown(
   });
 
   nav.level = nextRegion.level;
-  nav.focusedId = nextId;
+  nav.focusedId = finalId;
+  nav.skippedLevels = skipped;
 
-  onTileNeeded(nextId);
+  onTileNeeded(finalId);
 
   const newCam = bboxToCamera(nextRegion.bbox, canvasW, canvasH);
   target.setTransform(

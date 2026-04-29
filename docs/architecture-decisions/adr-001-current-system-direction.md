@@ -132,7 +132,7 @@ run on Google Cloud (Cloud Run + GCS).
 | Drill-down / drill-up navigation | implemented |
 | Navigation through all levels down to --ci | implemented |
 | Treatment of --? groups as layout containers | implemented |
-| Singleton level skip in navigation | pending |
+| Singleton level skip in navigation | implemented |
 | Breadcrumb with singleton level access | pending |
 | Hover highlight | nice to have — under investigation |
 | Integration with AI-generated descriptions | not in scope for Phase 1 |
@@ -173,7 +173,7 @@ run on Google Cloud (Cloud Run + GCS).
 
 1. Complete Phase 1 validation (see issue: Phase 1 — Validate Canvas navigator
    with priority WelfareData SVGs)
-2. Implement pending features: singleton level skip, breadcrumb with singleton access
+2. Implement pending features: breadcrumb with singleton access
    (hover highlight is under investigation — not required for Phase 1)
 3. Run test matrix across priority SVGs: Pig, Laying Hens, Dark Hatchery, Cattle
 4. If Phase 1 accepted: begin integration of Canvas Navigator into WelfareData-New

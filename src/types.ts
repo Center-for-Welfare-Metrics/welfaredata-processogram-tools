@@ -18,6 +18,7 @@ export interface NavState {
   level: number;
   focusedId: string | null;
   history: NavHistoryEntry[];
+  skippedLevels: string[];
 }
 
 export interface NavHistoryEntry {

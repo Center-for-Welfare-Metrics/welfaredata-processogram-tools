@@ -24,7 +24,7 @@ const buildTier = (mult: number): HTMLCanvasElement => {
 
 ## Por que existe
 
-Encapsula a lógica de criação de um tier individual: clamping do multiplicador, criação do canvas, scaling e rasterização. Usada duas vezes (para low=1 e mid=4).
+Encapsula a lógica de criação de um tier individual: clamping do multiplicador, criação do canvas, scaling e rasterização. Usada duas vezes: para `low=1` e para `mid=<mult adaptativo>`. O multiplicador do mid tier é calculado adaptativamente por `buildRasterCache()` com base no menor elemento `--ci` e passado como parâmetro — ver [buildRasterCache.md](./buildRasterCache.md).
 
 ## Como funciona
 

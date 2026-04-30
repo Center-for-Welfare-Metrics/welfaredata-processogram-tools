@@ -2,21 +2,30 @@
 
 ## O que faz
 
-Recebe a configuração do SVG (imagem, dimensões, regiões) e produz um `RasterCache` com dois canvas pré-rasterizados: **low** (1×) e **mid** (4×). O renderer seleciona entre eles com base no nível de zoom.
+Recebe a configuração do SVG (imagem, dimensões, regiões) e produz um `RasterCache` com dois canvas pré-rasterizados: **low** (1×) e **mid** (multiplicador adaptativo 4–8×). O renderer seleciona entre eles com base no nível de zoom.
 
 ```ts
 export async function buildRasterCache(
   config: RasterizerConfig
 ): Promise<RasterCache> {
-  const { svgImage, svgWidth, svgHeight } = config;
+  const { svgImage, svgWidth, svgHeight, regions } = config;
   const maxDim = Math.max(svgWidth, svgHeight);
 
   const buildTier = (mult: number): HTMLCanvasElement => {
     // ... (ver buildTier.md)
   };
 
+  // Adaptive mid tier multiplier (4–8×)
+  const ciRegions = [...regions.values()].filter(r => r.level === 3);
+  let midMult = 4;
+  if (ciRegions.length > 0) {
+    const smallestDim = Math.min(...ciRegions.map(r => Math.min(r.bbox.width, r.bbox.height)));
+    const rawMult = (window.innerWidth / smallestDim) / svgWidth;
+    midMult = Math.max(4, Math.min(8, rawMult));
+  }
+
   const low = buildTier(1);
-  const mid = buildTier(4);
+  const mid = buildTier(midMult);
 
   return { low, mid };
 }
@@ -33,7 +42,7 @@ Renderizar o SVG original a cada frame (60fps) via `drawImage(svgImage, ...)` é
 | Tier | Multiplicador | Resolução para SVG 2000×1600 | Uso                     |
 |------|---------------|-------------------------------|-------------------------|
 | low  | 1×            | 2000×1600                     | Zoom normal e afastado  |
-| mid  | 4×            | 8000×6400                     | Zoom próximo            |
+| mid  | 4–8× (adaptativo) | 8000×6400 a 16000×12800   | Zoom próximo            |
 
 O **low** é a imagem de trabalho — usada na maioria do tempo. O **mid** entra quando o `stretchFactor` no renderer ultrapassa 1.5 (ver [stretchFactor.md](../renderer/stretchFactor.md)).
 
@@ -98,10 +107,10 @@ interface RasterCache {
 }
 ```
 
-| Campo | Descrição                                              |
-|-------|--------------------------------------------------------|
-| `low` | Canvas com SVG rasterizado a 1× (resolução original)  |
-| `mid` | Canvas com SVG rasterizado a 4× (ou clamp)            |
+| Campo | Descrição                                                                |
+|-------|--------------------------------------------------------------------------|
+| `low` | Canvas com SVG rasterizado a 1× (resolução original)                    |
+| `mid` | Canvas com SVG rasterizado a 4–8× adaptativo (com MAX_CANVAS_DIM clamp) |
 
 ## Exemplos de uso
 
@@ -132,6 +141,66 @@ Se o low está sendo esticado mais que 1.5×, o mid assume para manter qualidade
 | Importa    | `types.ts`      | `RasterCache`, `Region`, `MAX_CANVAS_DIM` |
 | Chamado por | `main.ts`      | No `handleFile()` após loadSvgImage |
 | Produz dados para | `renderer.ts` | `rasterCache.low` e `rasterCache.mid` |
+
+## Multiplicador adaptativo do mid tier
+
+### O problema com o multiplicador fixo de 4×
+
+Com um multiplicador fixo de 4×, SVGs pequenos ou SVGs com elementos `--ci` de dimensões reduzidas sofrem degradação de qualidade ao nível de zoom máximo de um elemento focado. O mid tier é produzido a uma resolução insuficiente para cobrir o intervalo entre o zoom da visão geral e o zoom de foco em um elemento pequeno.
+
+### A lógica adaptativa
+
+O multiplicador do mid tier é calculado a partir do menor elemento `--ci` (level 3) presente no SVG:
+
+```ts
+const ciRegions = [...regions.values()].filter(r => r.level === 3);
+let midMult = 4; // fallback para SVGs sem nível --ci
+if (ciRegions.length > 0) {
+  const smallestDim = Math.min(
+    ...ciRegions.map(r => Math.min(r.bbox.width, r.bbox.height))
+  );
+  const rawMult = (window.innerWidth / smallestDim) / svgWidth;
+  midMult = Math.max(4, Math.min(8, rawMult));
+}
+```
+
+**Sequência de cálculo:**
+
+1. Filtrar todas as regiões no level 3 (`--ci`) — os elementos clicáveis mais profundos
+2. Se não há regiões `--ci` (SVG com menos de 4 níveis), usar fallback de 4×
+3. Encontrar o menor elemento: `Math.min(bbox.width, bbox.height)` em todas as regiões `--ci`
+4. Calcular o multiplicador necessário para renderizar esse elemento na resolução do viewport: `(window.innerWidth / smallestDim) / svgWidth`
+5. Aplicar os limites: mínimo 4× (nunca pior que o valor original), máximo 8× (previne consumo excessivo de memória)
+6. O `MAX_CANVAS_DIM` clamp dentro de `buildTier()` atua como rede de segurança final
+
+### Restrições aplicadas
+
+| Restrição | Valor | Motivo |
+|-----------|-------|--------|
+| Limite inferior | 4× | Garante retrocompatibilidade — SVGs que já funcionam não são afetados |
+| Limite superior | 8× | Previne consumo de memória excessivo (escala quadrática) |
+| `MAX_CANVAS_DIM` | 8192px | Segurança GPU — aplicado dentro de `buildTier()` |
+
+### Por que o limite superior é 8× e não mais?
+
+Elementos que exigem mais de 8× de resolução para qualidade perfeita estão além da capacidade prática do tier estático. Para esses casos, o mecanismo de **ViewBox Shifting** (Fix 2b) atua como segunda camada de qualidade — ele rasteriza a região focada sob demanda em resolução máxima, independentemente do mid tier. Os dois mecanismos são complementares: o mid tier adaptativo cobre a maioria dos casos; o ViewBox Shifting cobre os casos extremos.
+
+### Log de diagnóstico
+
+Quando o caminho adaptativo é ativado, um log é emitido:
+
+```
+[rasterizer] adaptive mid tier: smallest ci bbox dim: 45.0 | raw mult: 6.84 | clamped mult: 6.84 | mid canvas: 4323 x 3456
+```
+
+**Exemplos esperados por SVG:**
+
+| SVG | svgWidth | Menor ci dim | Raw mult | Clamped mult | Comportamento |
+|-----|----------|-------------|----------|--------------|---------------|
+| Hatchery | 1755 | ~grande | < 4 | 4 (limite inf.) | Idêntico ao anterior |
+| Pig | 632 | ~pequeno | > 4 | 4–8 (adaptativo) | Melhora de qualidade |
+
+Para qualquer SVG onde todos os elementos `--ci` são grandes o suficiente para que o multiplicador calculado fique abaixo de 4, o limite inferior entra em ação e o comportamento é idêntico à implementação anterior.
 
 ## Decisões arquiteturais
 

@@ -25,7 +25,7 @@ loadSvgImage()                          [main.ts]
   ▼
 buildRasterCache()                      [rasterizer.ts]
   ├─ low: HTMLCanvasElement (1×)        → normal zoom tier
-  └─ mid: HTMLCanvasElement (4×)        → near zoom tier
+  └─ mid: HTMLCanvasElement (4–8×, adaptive) → near zoom tier
   │
   ▼
 hitmap.build()                          [hitmap.ts]
@@ -177,6 +177,12 @@ $$
 
 When the factor exceeds `1.5`, the low tier is being stretched enough that the
 mid tier should take over.
+
+The mid tier multiplier is adaptive (4–8×), calculated from the smallest `--ci`
+element in the SVG so the tier resolution automatically matches the zoom demands
+of that SVG. This is the first layer of a two-layer quality system: the adaptive
+mid tier covers most zoom cases; ViewBox Shifting (Fix 2b) is the second layer
+for extreme zoom cases where even 8× is insufficient.
 
 ### 7. Why keep the audit layer separate from the parser?
 

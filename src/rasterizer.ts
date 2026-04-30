@@ -10,7 +10,7 @@ export interface RasterizerConfig {
 }
 
 export async function buildRasterCache(config: RasterizerConfig): Promise<RasterCache> {
-  const { svgImage, svgWidth, svgHeight } = config;
+  const { svgImage, svgWidth, svgHeight, regions } = config;
   const maxDim = Math.max(svgWidth, svgHeight);
 
   const buildTier = (mult: number): HTMLCanvasElement => {
@@ -29,8 +29,38 @@ export async function buildRasterCache(config: RasterizerConfig): Promise<Raster
     return canvas;
   };
 
+  // Adaptive mid tier multiplier based on smallest --ci element (level 3).
+  // Falls back to fixed 4x for SVGs with fewer than 4 hierarchy levels.
+  const ciRegions = [...regions.values()].filter(r => r.level === 3);
+  let midMult = 4;
+  if (ciRegions.length > 0) {
+    const validCiRegions = ciRegions.filter(r => Math.min(r.bbox.width, r.bbox.height) >= 20);
+    if (validCiRegions.length > 0) {
+      const smallestDim = Math.min(...validCiRegions.map(r => Math.min(r.bbox.width, r.bbox.height)));
+      const rawMult = window.innerWidth / smallestDim;
+      midMult = Math.max(4, Math.min(8, rawMult));
+      // Simulate MAX_CANVAS_DIM clamp for accurate dimension logging
+      let logM = midMult;
+      if (maxDim * logM > MAX_CANVAS_DIM) logM = Math.floor(MAX_CANVAS_DIM / maxDim);
+      if (logM < 1) logM = 1;
+      console.log(
+        '[rasterizer] adaptive mid tier:',
+        'ci regions:', ciRegions.length, '| valid (>=20):', validCiRegions.length,
+        '| smallest ci bbox dim:', smallestDim.toFixed(1),
+        '| raw mult:', rawMult.toFixed(2),
+        '| clamped mult:', midMult,
+        '| mid canvas:', Math.round(svgWidth * logM), 'x', Math.round(svgHeight * logM)
+      );
+    } else {
+      console.log(
+        '[rasterizer] adaptive mid tier:',
+        'ci regions:', ciRegions.length, '| valid (>=20): 0 — all degenerate, fallback to 4x'
+      );
+    }
+  }
+
   const low = buildTier(1);
-  const mid = buildTier(4);
+  const mid = buildTier(midMult);
 
   return { low, mid };
 }

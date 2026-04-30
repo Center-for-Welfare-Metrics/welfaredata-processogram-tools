@@ -31,6 +31,15 @@ export class HitMap {
     const hash = await this.computeHash(svgText);
     console.log('[hitmap] SVG hash:', hash);
 
+    // DEBUG — atributos do elemento raiz do SVG
+    const _dbgRoot = new DOMParser()
+      .parseFromString(svgText, 'image/svg+xml').documentElement;
+    console.log('[hitmap.build] viewBox attr :', _dbgRoot.getAttribute('viewBox'));
+    console.log('[hitmap.build] width attr   :', _dbgRoot.getAttribute('width'));
+    console.log('[hitmap.build] height attr  :', _dbgRoot.getAttribute('height'));
+    console.log('[hitmap.build] svgWidth param:', svgWidth, '| svgHeight param:', svgHeight);
+    // FIM DEBUG
+
     // 2. Tentar carregar do cache local
     const cacheHit = await this.loadFromCache(hash);
     if (cacheHit) {

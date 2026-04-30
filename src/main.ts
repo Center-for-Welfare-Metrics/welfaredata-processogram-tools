@@ -89,6 +89,7 @@ async function handleFile(file: File): Promise<void> {
   regions = parsed.regions;
   svgWidth = parsed.svgWidth;
   svgHeight = parsed.svgHeight;
+  console.log('[handleFile] parseSvg → svgWidth:', svgWidth, 'svgHeight:', svgHeight);
 
   if (parsed.suspiciousIds.length > 0) {
     const list = parsed.suspiciousIds.join(', ');
@@ -119,12 +120,14 @@ async function handleFile(file: File): Promise<void> {
 
   setProgress(40, 'Loading SVG image...');
   await tick();
-  svgImage = await loadSvgImage(svgText);
+  svgImage = await loadSvgImage(svgText, svgWidth, svgHeight);
+  console.log('[handleFile] loadSvgImage → naturalWidth:', svgImage.naturalWidth, 'naturalHeight:', svgImage.naturalHeight);
 
   setProgress(55, 'Rasterizing low tier...');
   await tick();
   rasterizerConfig = { svgText, svgImage, svgWidth, svgHeight, regions };
   rasterCache = await buildRasterCache(rasterizerConfig);
+  console.log('[handleFile] buildRasterCache → low:', rasterCache.low.width, 'x', rasterCache.low.height, '| mid:', rasterCache.mid.width, 'x', rasterCache.mid.height);
 
   setProgress(70, 'Building pixel-perfect hit-map...');
   await tick();
@@ -183,9 +186,32 @@ function setupCanvas(): void {
   renderer = new Renderer(mainCanvas);
 }
 
-function loadSvgImage(text: string): Promise<HTMLImageElement> {
+function loadSvgImage(text: string, svgW: number, svgH: number): Promise<HTMLImageElement> {
+  // Normalize the SVG before creating the Blob so the browser always
+  // loads it at the correct dimensions instead of falling back to 300×150.
+  // This mirrors the unconditional normalization already done in hitmap.ts.
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'image/svg+xml');
+  const svgRoot = doc.documentElement;
+
+  // Remove any <style> blocks that may override width/height via CSS rules.
+  for (const style of Array.from(svgRoot.querySelectorAll('style'))) {
+    style.remove();
+  }
+
+  // Remove stale width/height attributes before injecting the correct values.
+  svgRoot.removeAttribute('width');
+  svgRoot.removeAttribute('height');
+
+  // Inject correct dimensions unconditionally — same pattern as hitmap.ts.
+  svgRoot.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+  svgRoot.setAttribute('width',   String(svgW));
+  svgRoot.setAttribute('height',  String(svgH));
+
+  const normalizedText = new XMLSerializer().serializeToString(doc);
+
   return new Promise((resolve, reject) => {
-    const blob = new Blob([text], { type: 'image/svg+xml;charset=utf-8' });
+    const blob = new Blob([normalizedText], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => {

@@ -70,23 +70,57 @@ Se o audit encontrou IDs suspeitos, um toast vermelho é exibido por 8 segundos.
 ```ts
 setProgress(40, 'Carregando imagem SVG...');
 await tick();
-svgImage = await loadSvgImage(svgText);
+svgImage = await loadSvgImage(svgText, svgWidth, svgHeight);
 ```
 
 Converte o SVG text em `HTMLImageElement` via Blob → ObjectURL → Image. O `Image` é necessário como fonte para `drawImage()` no rasterizer.
 
+#### Bug e correção: normalização de dimensões antes do Blob
+
+**O bug** — quando um SVG não possui atributos `width` e `height` explícitos no elemento raiz (situação comum em arquivos exportados do Inkscape com apenas `viewBox`), o browser carrega a imagem com a resolução de fallback padrão de **300×150 px**, independente do tamanho real do SVG. Isso causava degradação severa no raster cache porque os tiles eram gerados a partir de uma imagem tiny.
+
+**A correção** — antes de criar o Blob, `loadSvgImage()` normaliza o SVG de forma incondicional, seguindo o mesmo padrão já aplicado em `hitmap.ts`:
+
 ```ts
-function loadSvgImage(text: string): Promise<HTMLImageElement> {
+function loadSvgImage(text: string, svgW: number, svgH: number): Promise<HTMLImageElement> {
+  // 1. Parse the raw SVG text into a DOM document.
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'image/svg+xml');
+  const svgRoot = doc.documentElement;
+
+  // 2. Remove any <style> blocks that may override width/height via CSS.
+  for (const style of Array.from(svgRoot.querySelectorAll('style'))) {
+    style.remove();
+  }
+
+  // 3. Remove stale width/height attributes.
+  svgRoot.removeAttribute('width');
+  svgRoot.removeAttribute('height');
+
+  // 4. Inject correct dimensions unconditionally.
+  svgRoot.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+  svgRoot.setAttribute('width',   String(svgW));
+  svgRoot.setAttribute('height',  String(svgH));
+
+  // 5. Serialize back and use the normalized string for the Blob.
+  const normalizedText = new XMLSerializer().serializeToString(doc);
+
   return new Promise((resolve, reject) => {
-    const blob = new Blob([text], { type: 'image/svg+xml;charset=utf-8' });
+    const blob = new Blob([normalizedText], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('...')); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load SVG image')); };
     img.src = url;
   });
 }
 ```
+
+A normalização é **incondicional**: mesmo que o SVG já tenha atributos `width`/`height` corretos (como o Hatchery com 1755.102×1132.753), os valores são sobrescritos com os mesmos valores calculados por `parseSvg()`. Isso é seguro porque `svgWidth` e `svgHeight` **derivam** desses atributos originais.
+
+**Importância para produção** — qualquer SVG enviado por Jean ou por designers futuros funcionará corretamente, independente de como foi exportado do Inkscape ou de outra ferramenta. O `naturalWidth`/`naturalHeight` reportado pelos `console.log` em `handleFile()` deve refletir as dimensões reais do SVG, não 300×150.
+
+Este padrão é idêntico ao aplicado em `hitmap.ts → fallbackToRasterize()`. As duas funções normalizam de forma independente porque cada uma cria sua própria imagem para propósitos distintos (raster cache vs. hitmap).
 
 ### 5. buildRasterCache()
 

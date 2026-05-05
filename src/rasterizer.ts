@@ -146,20 +146,39 @@ export async function buildDynamicTile(
     ${groupContent}
   </svg>`;
 
-  let tileScale = Math.min(1920 / viewBoxW, 1080 / viewBoxH);
-  if (viewBoxW * tileScale > MAX_CANVAS_DIM) {
-    tileScale = MAX_CANVAS_DIM / viewBoxW;
-  }
-  if (viewBoxH * tileScale > MAX_CANVAS_DIM) {
-    tileScale = Math.min(tileScale, MAX_CANVAS_DIM / viewBoxH);
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const scaleToFit = Math.min(viewportWidth / bbox.width, viewportHeight / bbox.height);
+  const rawTargetWidth = Math.ceil(bbox.width * scaleToFit * devicePixelRatio);
+  const rawTargetHeight = Math.ceil(bbox.height * scaleToFit * devicePixelRatio);
+
+  const maxTileCanvasDim = 4096;
+  let targetWidth = rawTargetWidth;
+  let targetHeight = rawTargetHeight;
+  let clampApplied = false;
+
+  if (rawTargetWidth > maxTileCanvasDim || rawTargetHeight > maxTileCanvasDim) {
+    const clampScale = maxTileCanvasDim / Math.max(rawTargetWidth, rawTargetHeight);
+    targetWidth = Math.floor(rawTargetWidth * clampScale);
+    targetHeight = Math.floor(rawTargetHeight * clampScale);
+    clampApplied = true;
   }
 
-  const canvasW = Math.round(viewBoxW * tileScale);
-  const canvasH = Math.round(viewBoxH * tileScale);
+  console.log(
+    '[rasterizer] dynamic tile:',
+    'region:', regionId,
+    '| bbox:', `${bbox.width.toFixed(1)} x ${bbox.height.toFixed(1)}`,
+    '| scale:', scaleToFit.toFixed(2),
+    '| dpr:', devicePixelRatio.toFixed(2),
+    '| raw target:', rawTargetWidth, 'x', rawTargetHeight,
+    '| final target:', targetWidth, 'x', targetHeight,
+    '| clamp:', clampApplied ? 'yes' : 'no'
+  );
 
   const canvas = document.createElement('canvas');
-  canvas.width = canvasW;
-  canvas.height = canvasH;
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
   const ctx = canvas.getContext('2d')!;
 
   const blob = new Blob([minimalSvg], { type: 'image/svg+xml;charset=utf-8' });
@@ -172,10 +191,10 @@ export async function buildDynamicTile(
     image.src = url;
   });
 
-  ctx.drawImage(img, 0, 0, canvasW, canvasH);
+  ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
   URL.revokeObjectURL(url);
 
-  const tile: DynamicTile = { canvas, bbox, scale: tileScale, padding };
+  const tile: DynamicTile = { canvas, bbox, scale: scaleToFit, padding };
   cache.set(regionId, tile);
   return tile;
 }

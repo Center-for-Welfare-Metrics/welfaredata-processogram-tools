@@ -397,19 +397,6 @@ function renderLoop(now: number): void {
   lastFrameTime = now;
   hud.trackFrame(dt);
 
-  // DEBUG
-  if (Math.abs(camera.translateY - ((window as any).__lastTY ?? 0)) > 5) {
-    console.log('[camera drift detected]', {
-      translateY: camera.translateY,
-      translateX: camera.translateX,
-      scale: camera.scale,
-      targetY: target.translateY,
-      targetX: target.translateX,
-    });
-    (window as any).__lastTY = camera.translateY;
-  }
-  // FIM DEBUG
-
   if (isAnimating) {
     const moved = animateCamera(camera, target);
     if (moved) {

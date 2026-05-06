@@ -79,16 +79,6 @@ export function animateCamera(camera: Camera, target: Camera): boolean {
     return false;
   }
 
-  // DEBUG
-  if (Math.abs(target.translateY) > 200) {
-    console.warn('[lerp] target.translateY anômalo:', {
-      targetY: target.translateY,
-      currentY: camera.translateY,
-      stack: new Error().stack?.split('\n').slice(1, 3).join(' | ')
-    });
-  }
-  // FIM DEBUG
-
   camera.setTransform(
     camera.scale      + ds * LERP_FACTOR,
     camera.translateX + dx * LERP_FACTOR,

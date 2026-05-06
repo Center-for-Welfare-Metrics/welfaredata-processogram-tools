@@ -348,22 +348,6 @@ export class HitMap {
   ): string | null {
     if (!this.ready) return null;
 
-    // DEBUG
-    console.log('[getRegionAt]',
-      'canvasX:', canvasX.toFixed(1),
-      'canvasY:', canvasY.toFixed(1),
-      'translateX:', camera.translateX.toFixed(2),
-      'translateY:', camera.translateY.toFixed(2),
-      'scale:', camera.scale.toFixed(4),
-      'svgX:', ((canvasX - camera.translateX) / camera.scale).toFixed(1),
-      'svgY:', ((canvasY - camera.translateY) / camera.scale).toFixed(1),
-      'hitX:', Math.round(((canvasX - camera.translateX) / camera.scale) * 0.5),
-      'hitY:', Math.round(((canvasY - camera.translateY) / camera.scale) * 0.5),
-      'nav.level:', nav.level,
-      'nav.focusedId:', nav.focusedId
-    );
-    // FIM DEBUG
-
     const m    = camera.inverseMatrix;
     const svgX = m.a * canvasX + m.c * canvasY + m.e;
     const svgY = m.b * canvasX + m.d * canvasY + m.f;

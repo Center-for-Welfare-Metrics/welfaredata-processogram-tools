@@ -37,7 +37,7 @@ When in doubt, compare your file with the Cattle SVG and follow the same overall
 |---|---|
 | Explicit size | The root `<svg>` must have explicit `width` and `height` attributes. |
 | Matching coordinate space | If the file uses `viewBox`, keep it aligned with the same size values used in `width` and `height`. Prefer `viewBox="0 0 W H"`. |
-| Minimum document size | Prefer at least `1500px` wide and `500px` high. |
+| Minimum document size | Prefer at least `1500px` wide and `500px` high. This is a scale and export recommendation, not a required aspect ratio. The proportions of the processogram must follow the conceptual design. The goal is to avoid files that are too small overall or `--ci` elements that require extreme zoom levels to inspect. |
 | Self-contained file | Keep essential fills, strokes, styles, and definitions inside the SVG file itself. Do not rely on page-level styling outside the SVG. |
 
 ### Navigable group structure
@@ -55,7 +55,9 @@ When in doubt, compare your file with the Cattle SVG and follow the same overall
 |---|---|
 | One item, one group | All shapes that visually belong to the same item must stay inside the same `<g id="...">`. |
 | Fill and stroke stay together | If an item has fill and stroke, both must remain inside the same group. |
-| Filled area required | Every navigable item must contain at least one filled shape. Do not make a navigable item from stroke-only artwork. |
+| Complete visual geometry | All shapes that visually represent a navigable item — including fill and stroke — must be inside the same group. Do not split visual geometry across different semantic groups. |
+| No artificial fills required | Navigable items do not need a solid visible fill if that does not make visual sense. Stroke-only, linear, hollow, or wire-like elements are valid as long as they contain their complete artwork. |
+| Optional hit area | For elements that are too thin, linear, or difficult to select (such as wires, fences, or thin borders), consider adding an invisible auxiliary shape inside the same group to improve clickability. This shape should match the approximate area of the element and use `opacity: 0` or `fill: none` with a thick invisible stroke. Do not add visible fills just to satisfy the engine — this would interfere with future light and dark theme conversion. |
 | Do not split one item across the file | Do not place one part of an item in one group and another part of the same item somewhere else in the SVG. |
 | Background is not a navigable item | Background blocks, decorative frames, helper shapes, and export leftovers should not receive navigable IDs. |
 
@@ -117,7 +119,6 @@ Problems in the example above:
 
 - The root SVG has no explicit `width` and `height`.
 - The navigable ID is on a single shape instead of a group.
-- The item has no filled area.
 - The parent and child structure is not nested correctly.
 - A navigable item is placed inside `<defs>`.
 
@@ -127,7 +128,8 @@ Problems in the example above:
 - Every navigable item is a `<g>` with one unique ID.
 - Parent and child groups are nested correctly.
 - Each navigable group contains all artwork for that item.
-- Each navigable group has at least one filled shape.
+- Each navigable group contains all visual artwork for that item (fill and stroke together, not split across groups).
+- Thin or hard-to-click elements have an optional invisible hit area inside the same group if needed.
 - Overlapping items are ordered correctly in the file.
 - Background and helper elements do not receive navigable IDs.
 - `--ci` items are not too small.

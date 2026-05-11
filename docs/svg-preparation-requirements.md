@@ -1,3 +1,12 @@
+> **Operational source of truth for SVG technical requirements.**
+> This document defines what is required for an SVG to work correctly 
+> with the Canvas Navigator engine. When there is any conflict with 
+> older documents (including the Processogram Development Manual or 
+> the legacy Technical Documentation), this file takes precedence 
+> for technical compatibility with the motor.
+
+---
+
 ## SVG Preparation Requirements
 
 Use this document as a checklist when creating, revising, or exporting any processogram SVG.

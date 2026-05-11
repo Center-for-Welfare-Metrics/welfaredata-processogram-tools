@@ -66,7 +66,7 @@ When in doubt, compare your file with the Cattle SVG and follow the same overall
 | Fill and stroke stay together | If an item has fill and stroke, both must remain inside the same group. |
 | Complete visual geometry | All shapes that visually represent a navigable item — including fill and stroke — must be inside the same group. Do not split visual geometry across different semantic groups. |
 | No artificial fills required | Navigable items do not need a solid visible fill if that does not make visual sense. Stroke-only, linear, hollow, or wire-like elements are valid as long as they contain their complete artwork. |
-| Optional hit area | For elements that are too thin, linear, or difficult to select (such as wires, fences, or thin borders), consider adding an invisible auxiliary shape inside the same group to improve clickability. This shape should match the approximate area of the element and use `opacity: 0` or `fill: none` with a thick invisible stroke. Do not add visible fills just to satisfy the engine — this would interfere with future light and dark theme conversion. |
+| No invisible hit-areas | Do not add invisible auxiliary shapes (opacity: 0, fill: none, or similar) to improve clickability. This technique is not reliably supported by the current motor — the hitmap rewrites SVG styles before rasterizing, making the behavior of invisible shapes unpredictable. This will be addressed in a future motor update. |
 | Do not split one item across the file | Do not place one part of an item in one group and another part of the same item somewhere else in the SVG. |
 | Background is not a navigable item | Background blocks, decorative frames, helper shapes, and export leftovers should not receive navigable IDs. |
 
@@ -138,7 +138,7 @@ Problems in the example above:
 - Parent and child groups are nested correctly.
 - Each navigable group contains all artwork for that item.
 - Each navigable group contains all visual artwork for that item (fill and stroke together, not split across groups).
-- Thin or hard-to-click elements have an optional invisible hit area inside the same group if needed.
+- Thin or hard-to-click elements: do not add invisible hit-areas — not yet supported by the motor. Keep all real visual geometry inside the correct semantic group.
 - Overlapping items are ordered correctly in the file.
 - Background and helper elements do not receive navigable IDs.
 - `--ci` items are not too small.

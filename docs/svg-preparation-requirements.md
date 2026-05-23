@@ -93,6 +93,56 @@ When in doubt, compare your file with the Cattle SVG and follow the same overall
 | Minimum `--ci` size | `20px` in SVG coordinates | Smaller items become too small to inspect and select reliably. |
 | Recommended `--ci` size | `50px` or larger | Gives better readability and better focus quality. |
 
+### Animal representation rules
+
+Individual animals are the welfare subjects of processograms.
+Use the following rules when deciding how to represent them:
+
+| Case | Rule |
+|---|---|
+| Animal clearly visible, large enough, technically feasible | Each animal should be its own --ci element |
+| Animals very small, far away, high density, or shown as a mass | Use a group or representative --ci instead of individualizing |
+| Animal is the subject of a handled scene (e.g. chick being sexed) | Animal may have its own --ci if technically feasible; hands and fingers are visual context, not separate --ci |
+
+**Guiding question:** "Do we want the user to click this specific
+object and see separate information about it?"
+- Yes → own --ci
+- No → visual detail inside the relevant semantic group
+
+For non-individualized groups, use names like:
+- `chick_group--ci-01`
+- `salmon_group--ci-01`
+- `salmon_representative--ci-01`
+
+Keep the animal type stable. Do not create new semantic classes
+like "crowded_chicks" or "school_of_salmon". Context and
+hierarchy explain where the animal is and what it is exposed to.
+
+---
+
+### Duration and metadata labels
+
+Duration labels such as `duration_1_to_24_hours` should be
+treated as visual metadata of the phase — not as navigable
+--ci components — unless they are intentionally meant to open
+specific information when clicked.
+
+If the label is only visual, do not assign a --ci ID to it.
+
+---
+
+### Naming conventions for common components
+
+| Component type | Recommended naming |
+|---|---|
+| Individual animal | `chick--ci-01`, `chick_female--ci-01` |
+| Animal group/mass | `chick_group--ci-01`, `salmon_representative--ci-01` |
+| Transport box | `transport_box--ci-01` (not `box--ci-01`) |
+| Transport crate | `transport_crates--ci` or `crate_stack--ci` |
+| Vehicle | `truck--ci`, `forklift--ci` (avoid numbered suffix if only one) |
+| Operator/handler | `forklift_operator--ci` (use full descriptive name, no typos) |
+| Duration label | Do not use --ci unless clickable |
+
 ### Recommended structure example
 
 ```svg

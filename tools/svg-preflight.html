@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVG Preflight — WelfareData Canvas Navigator</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+code, .mono {
+  font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", "Consolas", monospace;
+  font-size: 0.9em;
+}
+
+h1 {
+  font-size: 1.4em;
+  color: #c4b5fd;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  color: #8888aa;
+  font-size: 0.85em;
+  margin-bottom: 24px;
+}
+
+/* Drop zone */
+#drop-zone {
+  border: 2px dashed #555;
+  border-radius: 12px;
+  padding: 60px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  max-width: 640px;
+  margin: 0 auto 24px;
+}
+
+#drop-zone:hover, #drop-zone.drag-over {
+  border-color: #c4b5fd;
+  background: rgba(196, 181, 253, 0.06);
+}
+
+#drop-zone p {
+  color: #aaa;
+  margin-bottom: 8px;
+}
+
+#drop-zone .hint {
+  color: #666;
+  font-size: 0.82em;
+}
+
+#file-input { display: none; }
+
+/* Report area */
+#report { display: none; max-width: 900px; margin: 0 auto; }
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+button {
+  background: #2d2d4a;
+  color: #c4b5fd;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background 0.15s;
+}
+
+button:hover { background: #3d3d5a; }
+
+/* Summary header */
+.summary-header {
+  background: #16162a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 18px 22px;
+  margin-bottom: 18px;
+  border-top: 3px solid #555;
+}
+
+.summary-header.status-error  { border-top-color: #f87171; }
+.summary-header.status-warning { border-top-color: #fbbf24; }
+.summary-header.status-success { border-top-color: #4ade80; }
+
+.summary-header .filename {
+  color: #c4b5fd;
+  font-size: 1.1em;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px 16px;
+  margin-top: 10px;
+}
+
+.meta-item label {
+  color: #888;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+}
+
+.meta-item span {
+  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  color: #ddd;
+  font-size: 0.9em;
+}
+
+/* Counts bar */
+.counts-bar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.count-chip {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.count-chip .chip-icon {
+  margin-right: 4px;
+}
+
+.count-chip.error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+.count-chip.warning { background: rgba(250, 204, 21, 0.12); color: #fbbf24; border: 1px solid rgba(250, 204, 21, 0.25); }
+.count-chip.pass { background: rgba(34, 197, 94, 0.12); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.25); }
+.count-chip.info { background: rgba(96, 165, 250, 0.12); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.25); }
+
+/* Check groups */
+.check-group { margin-bottom: 24px; }
+
+.check-group + .check-group {
+  padding-top: 8px;
+  border-top: 1px solid #2a2a40;
+}
+
+.check-group-title {
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #333;
+}
+
+.check-group-title.error { color: #f87171; }
+.check-group-title.warning { color: #fbbf24; }
+.check-group-title.pass { color: #4ade80; }
+.check-group-title.info { color: #60a5fa; }
+
+/* Individual check */
+.check-item {
+  padding: 10px 14px;
+  margin-bottom: 5px;
+  border-radius: 6px;
+  background: #16162a;
+  border-left: 3px solid transparent;
+}
+
+.check-item:nth-child(even) {
+  background: #181830;
+}
+
+.check-item.error { border-left-color: #f87171; }
+.check-item.warning { border-left-color: #fbbf24; }
+.check-item.pass { border-left-color: #4ade80; }
+.check-item.info { border-left-color: #60a5fa; }
+
+.check-status {
+  font-weight: 700;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  margin-right: 8px;
+}
+
+.check-status.error { color: #f87171; }
+.check-status.warning { color: #fbbf24; }
+.check-status.pass { color: #4ade80; }
+.check-status.info { color: #60a5fa; }
+
+.check-desc { color: #ccc; font-size: 0.9em; }
+
+.check-details {
+  margin-top: 8px;
+  padding-left: 22px;
+  font-size: 0.82em;
+  color: #999;
+}
+
+.check-details li {
+  list-style: none;
+  padding: 2px 0;
+}
+
+.check-details li::before {
+  content: "\2022 ";
+  color: #666;
+}
+
+.check-details code {
+  color: #c4b5fd;
+  background: rgba(196, 181, 253, 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* SVG preview */
+.preview-section {
+  margin-top: 24px;
+  background: #16162a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.preview-section h3 {
+  color: #888;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.preview-label {
+  color: #999;
+  font-size: 0.8em;
+  margin-bottom: 8px;
+  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+}
+
+.preview-container {
+  background: #fff;
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-height: 400px;
+  overflow: auto;
+}
+
+.preview-container svg {
+  max-width: 100%;
+  max-height: 370px;
+  height: auto;
+}
+
+/* Delivery status banner */
+.delivery-banner {
+  padding: 14px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.delivery-banner .banner-icon {
+  font-size: 1.3em;
+  flex-shrink: 0;
+}
+
+.delivery-banner.success {
+  background: rgba(34, 197, 94, 0.13);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #4ade80;
+}
+
+.delivery-banner.caution {
+  background: rgba(250, 204, 21, 0.10);
+  border: 1px solid rgba(250, 204, 21, 0.30);
+  color: #fbbf24;
+}
+
+.delivery-banner.blocked {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.30);
+  color: #f87171;
+}
+
+/* Error banner */
+.parse-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 16px 20px;
+  color: #f87171;
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<h1>SVG Preflight</h1>
+<p class="subtitle">WelfareData Canvas Navigator — Technical pre-delivery check</p>
+
+<div id="drop-zone">
+  <p>Drop an SVG file here or click to browse</p>
+  <p class="hint">Accepts .svg files only</p>
+  <input type="file" id="file-input" accept=".svg">
+</div>
+
+<div id="parse-error-container"></div>
+
+<div id="report">
+  <div class="toolbar">
+    <button id="btn-new">Test another file</button>
+    <button id="btn-download">Download report (.txt)</button>
+  </div>
+  <div id="delivery-banner-slot"></div>
+  <div class="summary-header" id="summary-header"></div>
+  <div class="counts-bar" id="counts-bar"></div>
+  <div id="checks-list"></div>
+  <div class="preview-section" id="preview-section">
+    <h3>SVG Preview</h3>
+    <div class="preview-label" id="preview-label"></div>
+    <div class="preview-container" id="preview-container"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var NAVIGABLE_RE = /--(ps|lf|ph|ci)(-\d+)?$/;
+  var SUFFIX_LEVELS = { ps: 0, lf: 1, ph: 2, ci: 3 };
+  var LEVEL_NAMES = { ps: 'Process', lf: 'Life Function', ph: 'Phase', ci: 'Component/Indicator' };
+  var EXPECTED_PARENT = { ci: 'ph', ph: 'lf', lf: 'ps' };
+  var SHAPE_TAGS = ['path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline', 'line', 'use', 'image', 'text'];
+  var MIN_CI_DIM = 20;
+
+  var dropZone = document.getElementById('drop-zone');
+  var fileInput = document.getElementById('file-input');
+  var reportEl = document.getElementById('report');
+  var parseErrorContainer = document.getElementById('parse-error-container');
+
+  var currentFileName = '';
+  var currentReportText = '';
+
+  // -- Drop zone events --
+  dropZone.addEventListener('click', function() { fileInput.click(); });
+  fileInput.addEventListener('change', function(e) {
+    if (e.target.files.length) handleFile(e.target.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', function() {
+    dropZone.classList.remove('drag-over');
+  });
+  dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    var files = e.dataTransfer.files;
+    if (files.length) handleFile(files[0]);
+  });
+
+  document.getElementById('btn-new').addEventListener('click', resetUI);
+  document.getElementById('btn-download').addEventListener('click', downloadReport);
+
+  function resetUI() {
+    reportEl.style.display = 'none';
+    dropZone.style.display = '';
+    parseErrorContainer.innerHTML = '';
+    fileInput.value = '';
+    currentFileName = '';
+    currentReportText = '';
+  }
+
+  function handleFile(file) {
+    if (!file.name.toLowerCase().endsWith('.svg')) {
+      showParseError('Not an SVG file. Please select a file ending in .svg.');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      currentFileName = file.name;
+      analyze(e.target.result);
+    };
+    reader.onerror = function() {
+      showParseError('Could not read the file. Please try again.');
+    };
+    reader.readAsText(file);
+  }
+
+  function showParseError(msg) {
+    parseErrorContainer.innerHTML = '<div class="parse-error">' + escapeHtml(msg) + '</div>';
+  }
+
+  // -- Main analysis --
+  function analyze(svgText) {
+    parseErrorContainer.innerHTML = '';
+
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(svgText, 'image/svg+xml');
+    var parserError = doc.querySelector('parsererror');
+    if (parserError) {
+      showParseError('SVG parsing failed: ' + parserError.textContent.substring(0, 200));
+      return;
+    }
+
+    var root = doc.documentElement;
+    if (!root || root.tagName.toLowerCase() !== 'svg') {
+      showParseError('The file does not contain a valid SVG root element.');
+      return;
+    }
+
+    dropZone.style.display = 'none';
+    reportEl.style.display = 'block';
+
+    var results = [];
+
+    // Gather basic info
+    var svgWidth = root.getAttribute('width') || '';
+    var svgHeight = root.getAttribute('height') || '';
+    var viewBox = root.getAttribute('viewBox') || '';
+
+    // Count navigable regions
+    var allElements = doc.querySelectorAll('[id]');
+    var regionCounts = { ps: 0, lf: 0, ph: 0, ci: 0 };
+    var navigableEls = [];
+    for (var i = 0; i < allElements.length; i++) {
+      var id = allElements[i].getAttribute('id');
+      var m = id.match(NAVIGABLE_RE);
+      if (m) {
+        regionCounts[m[1]]++;
+        navigableEls.push({ el: allElements[i], id: id, level: m[1] });
+      }
+    }
+
+    // -- INFO checks --
+    results.push({ status: 'info', title: 'SVG dimensions', desc: 'Width: ' + (svgWidth || '(not set)') + '  Height: ' + (svgHeight || '(not set)'), items: [] });
+    results.push({ status: 'info', title: 'ViewBox', desc: viewBox || '(not set)', items: [] });
+    results.push({ status: 'info', title: 'Region counts',
+      desc: 'Process (--ps): ' + regionCounts.ps +
+            '  |  Life Function (--lf): ' + regionCounts.lf +
+            '  |  Phase (--ph): ' + regionCounts.ph +
+            '  |  Component (--ci): ' + regionCounts.ci,
+      items: [] });
+
+    // -- ERROR checks --
+
+    // E1: width attribute
+    if (!svgWidth.trim()) {
+      results.push({ status: 'error', title: 'Missing width attribute', desc: 'The root <svg> element has no width attribute.', items: [] });
+    } else {
+      results.push({ status: 'pass', title: 'Width attribute present', desc: 'width="' + svgWidth + '"', items: [] });
+    }
+
+    // E2: height attribute
+    if (!svgHeight.trim()) {
+      results.push({ status: 'error', title: 'Missing height attribute', desc: 'The root <svg> element has no height attribute.', items: [] });
+    } else {
+      results.push({ status: 'pass', title: 'Height attribute present', desc: 'height="' + svgHeight + '"', items: [] });
+    }
+
+    // E3: viewBox attribute
+    if (!viewBox) {
+      results.push({ status: 'error', title: 'Missing viewBox', desc: 'The root <svg> has no viewBox attribute.', items: [] });
+    } else {
+      results.push({ status: 'pass', title: 'ViewBox present', desc: 'viewBox="' + viewBox + '"', items: [] });
+
+      // E4: viewBox consistency with width/height
+      if (svgWidth.trim() && svgHeight.trim()) {
+        var vbParts = viewBox.trim().split(/[\s,]+/);
+        if (vbParts.length === 4) {
+          var vbW = parseFloat(vbParts[2]);
+          var vbH = parseFloat(vbParts[3]);
+          var dimW = parseFloat(svgWidth);
+          var dimH = parseFloat(svgHeight);
+          if (!isNaN(vbW) && !isNaN(vbH) && !isNaN(dimW) && !isNaN(dimH)) {
+            var tolerance = 1;
+            var wMatch = Math.abs(vbW - dimW) <= tolerance;
+            var hMatch = Math.abs(vbH - dimH) <= tolerance;
+            if (wMatch && hMatch) {
+              results.push({ status: 'pass', title: 'ViewBox consistent with dimensions', desc: 'viewBox (' + vbW + 'x' + vbH + ') matches width/height (' + dimW + 'x' + dimH + ').', items: [] });
+            } else {
+              var mismatches = [];
+              if (!wMatch) mismatches.push('viewBox width ' + vbW + ' vs attribute width ' + dimW);
+              if (!hMatch) mismatches.push('viewBox height ' + vbH + ' vs attribute height ' + dimH);
+              results.push({ status: 'error', title: 'ViewBox inconsistent with dimensions', desc: 'The viewBox dimensions do not match the width/height attributes.', items: mismatches });
+            }
+          }
+        }
+      }
+    }
+
+    // W-dim: Minimum SVG dimension warning
+    var pureNumRe = /^\d+(\.\d+)?$/;
+    var numW = parseFloat(svgWidth);
+    var numH = parseFloat(svgHeight);
+    if (!isNaN(numW) && pureNumRe.test(svgWidth.trim()) && !isNaN(numH) && pureNumRe.test(svgHeight.trim())) {
+      if (numW < 1500 || numH < 500) {
+        var dimIssues = [];
+        if (numW < 1500) dimIssues.push('Width is ' + numW + 'px (minimum recommended: 1500px)');
+        if (numH < 500) dimIssues.push('Height is ' + numH + 'px (minimum recommended: 500px)');
+        results.push({ status: 'warning', title: 'SVG dimensions below recommended minimum', desc: 'Small SVGs require excessive zoom for --ci elements, which degrades raster cache quality. Recommended minimum is 1500x500px.', items: dimIssues });
+      } else {
+        results.push({ status: 'pass', title: 'SVG dimensions meet minimum recommendation', desc: 'Dimensions ' + numW + 'x' + numH + 'px meet the recommended 1500x500px minimum.', items: [] });
+      }
+    }
+
+    // E5: Duplicate IDs
+    var idMap = {};
+    var allWithId = doc.querySelectorAll('[id]');
+    for (var i = 0; i < allWithId.length; i++) {
+      var id = allWithId[i].getAttribute('id');
+      idMap[id] = (idMap[id] || 0) + 1;
+    }
+    var dupes = [];
+    for (var id in idMap) {
+      if (idMap[id] > 1) dupes.push(id + ' (' + idMap[id] + ' times)');
+    }
+    if (dupes.length) {
+      results.push({ status: 'error', title: 'Duplicate IDs found', desc: dupes.length + ' ID(s) appear more than once in the document.', items: dupes });
+    } else {
+      results.push({ status: 'pass', title: 'No duplicate IDs', desc: 'All IDs in the document are unique.', items: [] });
+    }
+
+    // E6: Navigable IDs on non-group elements
+    var nonGroupNavs = [];
+    for (var i = 0; i < navigableEls.length; i++) {
+      var tag = navigableEls[i].el.tagName.toLowerCase();
+      if (tag !== 'g') {
+        nonGroupNavs.push(navigableEls[i].id + ' (on <' + tag + '>)');
+      }
+    }
+    if (nonGroupNavs.length) {
+      results.push({ status: 'error', title: 'Navigable IDs on non-group elements', desc: 'Navigable IDs must be on <g> elements, not on shapes or other elements.', items: nonGroupNavs });
+    } else {
+      results.push({ status: 'pass', title: 'All navigable IDs on <g> elements', desc: 'Every navigable region ID is correctly placed on a group element.', items: [] });
+    }
+
+    // E7: Navigable groups with transforms
+    var transformedGroups = [];
+    for (var i = 0; i < navigableEls.length; i++) {
+      if (navigableEls[i].el.hasAttribute('transform')) {
+        transformedGroups.push(navigableEls[i].id);
+      }
+    }
+    if (transformedGroups.length) {
+      results.push({ status: 'error', title: 'Navigable groups have transform attributes', desc: 'Semantic groups must not have transform attributes — they break coordinate calculations.', items: transformedGroups });
+    } else {
+      results.push({ status: 'pass', title: 'No transforms on navigable groups', desc: 'No semantic group carries a transform attribute.', items: [] });
+    }
+
+    // -- WARNING checks --
+
+    // W1: display:none inside semantic groups
+    var hiddenInside = [];
+    for (var i = 0; i < navigableEls.length; i++) {
+      var children = navigableEls[i].el.querySelectorAll('*');
+      for (var j = 0; j < children.length; j++) {
+        var style = children[j].getAttribute('style') || '';
+        if (/display\s*:\s*none/i.test(style)) {
+          var cId = children[j].getAttribute('id') || ('<' + children[j].tagName.toLowerCase() + '> inside ' + navigableEls[i].id);
+          hiddenInside.push(cId);
+        }
+      }
+      // Also check the navigable element itself
+      var ownStyle = navigableEls[i].el.getAttribute('style') || '';
+      if (/display\s*:\s*none/i.test(ownStyle)) {
+        hiddenInside.push(navigableEls[i].id + ' (the group itself)');
+      }
+    }
+    if (hiddenInside.length) {
+      results.push({ status: 'warning', title: 'Hidden elements inside semantic groups', desc: 'Elements with display:none were found inside navigable regions. This may hide content unintentionally.', items: dedupe(hiddenInside) });
+    } else {
+      results.push({ status: 'pass', title: 'No hidden elements in semantic groups', desc: 'No display:none found inside any navigable region.', items: [] });
+    }
+
+    // W2: Small --ci bounding boxes (deferred to measurement step)
+    var smallCIs = measureCIBounds(svgText, navigableEls);
+
+    // W2 results
+    if (smallCIs.failures.length) {
+      results.push({ status: 'warning', title: 'Bounding-box measurement failed', desc: 'Could not measure the rendered size of some --ci elements.', items: smallCIs.failures });
+    }
+    if (smallCIs.small.length) {
+      results.push({ status: 'warning', title: 'Very small --ci elements', desc: 'These component/indicator regions have a smallest rendered dimension below ' + MIN_CI_DIM + 'px. They may be too small for interaction.', items: smallCIs.small });
+    } else if (smallCIs.failures.length === 0) {
+      var ciCount = 0;
+      for (var i = 0; i < navigableEls.length; i++) { if (navigableEls[i].level === 'ci') ciCount++; }
+      if (ciCount > 0) {
+        results.push({ status: 'pass', title: 'All --ci elements have adequate size', desc: 'Every component/indicator region meets the minimum ' + MIN_CI_DIM + 'px dimension.', items: [] });
+      }
+    }
+
+    // W3: Duration labels marked as --ci
+    var durationCIs = [];
+    for (var i = 0; i < navigableEls.length; i++) {
+      if (navigableEls[i].level === 'ci' && /duration/i.test(navigableEls[i].id)) {
+        durationCIs.push(navigableEls[i].id);
+      }
+    }
+    if (durationCIs.length) {
+      results.push({ status: 'warning', title: 'Duration labels marked as navigable components', desc: 'Duration labels are visual metadata of the phase, not interactive components. Remove the --ci suffix from these IDs — they should not be navigable at all.', items: durationCIs });
+    }
+
+    // W4: Suspicious ID characters (only IDs containing the -- delimiter)
+    var suspiciousIDs = [];
+    for (var i = 0; i < allWithId.length; i++) {
+      var id = allWithId[i].getAttribute('id');
+      if (id.indexOf('--') === -1) continue;
+      if (/__/.test(id)) suspiciousIDs.push(id + ' (double underscore)');
+      else if (/\s/.test(id)) suspiciousIDs.push(id + ' (contains space)');
+      else if (/[^a-zA-Z0-9_\-]/.test(id)) suspiciousIDs.push(id + ' (invalid characters)');
+    }
+    if (suspiciousIDs.length) {
+      results.push({ status: 'warning', title: 'Suspicious ID formatting', desc: 'These IDs contain unusual characters that may cause issues.', items: dedupe(suspiciousIDs) });
+    } else {
+      results.push({ status: 'pass', title: 'All IDs well-formed', desc: 'No IDs with double underscores, spaces, or invalid characters found.', items: [] });
+    }
+
+    // W5: Hierarchy nesting violations
+    var nestingIssues = [];
+    for (var i = 0; i < navigableEls.length; i++) {
+      var nav = navigableEls[i];
+      var expectedParentLevel = EXPECTED_PARENT[nav.level];
+      if (!expectedParentLevel) continue; // --ps has no required parent
+      var ancestor = nav.el.parentElement;
+      var found = false;
+      while (ancestor) {
+        var aId = ancestor.getAttribute ? ancestor.getAttribute('id') : null;
+        if (aId) {
+          var aMatch = aId.match(NAVIGABLE_RE);
+          if (aMatch && aMatch[1] === expectedParentLevel) {
+            found = true;
+            break;
+          }
+        }
+        ancestor = ancestor.parentElement;
+      }
+      if (!found) {
+        nestingIssues.push(nav.id + ' (--' + nav.level + ' not inside a --' + expectedParentLevel + ')');
+      }
+    }
+    if (nestingIssues.length) {
+      results.push({ status: 'warning', title: 'Hierarchy nesting issues', desc: 'Some navigable elements are not nested inside the expected parent level.', items: nestingIssues });
+    } else if (navigableEls.length > 0) {
+      results.push({ status: 'pass', title: 'Hierarchy nesting correct', desc: 'All navigable elements follow the expected ps > lf > ph > ci nesting order.', items: [] });
+    }
+
+    // W6: Non-standard -- suffixes
+    var nonStandardSuffixes = [];
+    for (var i = 0; i < allWithId.length; i++) {
+      var id = allWithId[i].getAttribute('id');
+      if (/--/.test(id) && !NAVIGABLE_RE.test(id)) {
+        nonStandardSuffixes.push(id);
+      }
+    }
+    if (nonStandardSuffixes.length) {
+      results.push({ status: 'warning', title: 'Non-standard -- suffixes', desc: 'These IDs use the -- delimiter but do not match any valid suffix (--ps, --lf, --ph, --ci). They may be typos or unused conventions.', items: nonStandardSuffixes });
+    } else {
+      results.push({ status: 'pass', title: 'All -- suffixes are standard', desc: 'Every ID using -- matches a recognized navigable suffix.', items: [] });
+    }
+
+    // -- Render report --
+    renderReport(results, regionCounts, svgWidth, svgHeight, viewBox, svgText);
+  }
+
+  // -- Bounding box measurement (Step 4) --
+  function measureCIBounds(svgText, navigableEls) {
+    var result = { small: [], failures: [] };
+    var ciEls = [];
+    for (var i = 0; i < navigableEls.length; i++) {
+      if (navigableEls[i].level === 'ci') ciEls.push(navigableEls[i]);
+    }
+    if (ciEls.length === 0) return result;
+
+    var container = document.createElement('div');
+    container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;width:0;height:0;overflow:hidden;';
+    document.body.appendChild(container);
+
+    try {
+      container.innerHTML = svgText;
+      var liveSvg = container.querySelector('svg');
+      if (!liveSvg) {
+        result.failures.push('Could not insert SVG for measurement.');
+        return result;
+      }
+
+      for (var i = 0; i < ciEls.length; i++) {
+        var id = ciEls[i].id;
+        try {
+          var el = liveSvg.querySelector('#' + CSS.escape(id));
+          if (!el) {
+            result.failures.push(id + ' (element not found in live copy)');
+            continue;
+          }
+          var bbox = el.getBBox();
+          if (bbox.width === 0 && bbox.height === 0) {
+            result.failures.push(id + ' (zero-size bounding box)');
+            continue;
+          }
+          var minDim = Math.min(bbox.width, bbox.height);
+          if (minDim < MIN_CI_DIM) {
+            result.small.push(id + ' (' + Math.round(bbox.width) + 'x' + Math.round(bbox.height) + 'px, min=' + Math.round(minDim) + ')');
+          }
+        } catch (ex) {
+          result.failures.push(id + ' (measurement error: ' + ex.message + ')');
+        }
+      }
+    } catch (ex) {
+      result.failures.push('SVG insertion failed: ' + ex.message);
+    } finally {
+      document.body.removeChild(container);
+    }
+
+    return result;
+  }
+
+  // -- Render --
+  function renderReport(results, regionCounts, svgWidth, svgHeight, viewBox, svgText) {
+    var counts = { error: 0, warning: 0, pass: 0, info: 0 };
+    for (var i = 0; i < results.length; i++) counts[results[i].status]++;
+
+    // Delivery status banner
+    var bannerSlot = document.getElementById('delivery-banner-slot');
+    var bannerHtml = '';
+    if (counts.error > 0) {
+      bannerHtml = '<div class="delivery-banner blocked"><span class="banner-icon">✖</span>ERRORS FOUND — fix ' + counts.error + ' error' + (counts.error !== 1 ? 's' : '') + ' before delivery.</div>';
+    } else if (counts.warning > 0) {
+      bannerHtml = '<div class="delivery-banner caution"><span class="banner-icon">⚠</span>REVIEW WARNINGS — no errors, but ' + counts.warning + ' warning' + (counts.warning !== 1 ? 's' : '') + ' require attention.</div>';
+    } else {
+      bannerHtml = '<div class="delivery-banner success"><span class="banner-icon">✔</span>READY TO DELIVER — no errors or warnings found.</div>';
+    }
+    bannerSlot.innerHTML = bannerHtml;
+
+    // Determine overall status for header accent
+    var overallStatus = counts.error > 0 ? 'error' : (counts.warning > 0 ? 'warning' : 'success');
+
+    // Summary header
+    var headerHtml = '<div class="filename">' + escapeHtml(currentFileName) + '</div>';
+    headerHtml += '<div class="meta-grid">';
+    headerHtml += metaItem('Width', svgWidth || '—');
+    headerHtml += metaItem('Height', svgHeight || '—');
+    headerHtml += metaItem('ViewBox', viewBox || '—');
+    headerHtml += metaItem('--ps groups', regionCounts.ps);
+    headerHtml += metaItem('--lf groups', regionCounts.lf);
+    headerHtml += metaItem('--ph groups', regionCounts.ph);
+    headerHtml += metaItem('--ci groups', regionCounts.ci);
+    headerHtml += '</div>';
+    var summaryEl = document.getElementById('summary-header');
+    summaryEl.className = 'summary-header status-' + overallStatus;
+    summaryEl.innerHTML = headerHtml;
+
+    // Counts bar
+    var countsHtml = '';
+    countsHtml += '<span class="count-chip error"><span class="chip-icon">✖</span>' + counts.error + ' error' + (counts.error !== 1 ? 's' : '') + '</span>';
+    countsHtml += '<span class="count-chip warning"><span class="chip-icon">⚠</span>' + counts.warning + ' warning' + (counts.warning !== 1 ? 's' : '') + '</span>';
+    countsHtml += '<span class="count-chip pass"><span class="chip-icon">✔</span>' + counts.pass + ' pass' + (counts.pass !== 1 ? 'es' : '') + '</span>';
+    countsHtml += '<span class="count-chip info"><span class="chip-icon">ℹ</span>' + counts.info + ' info</span>';
+    document.getElementById('counts-bar').innerHTML = countsHtml;
+
+    // Group results by severity
+    var groups = { error: [], warning: [], pass: [], info: [] };
+    for (var i = 0; i < results.length; i++) groups[results[i].status].push(results[i]);
+
+    var checksHtml = '';
+    var order = ['error', 'warning', 'pass', 'info'];
+    var groupLabels = { error: 'Errors', warning: 'Warnings', pass: 'Passed', info: 'Information' };
+
+    for (var g = 0; g < order.length; g++) {
+      var key = order[g];
+      if (groups[key].length === 0) continue;
+      checksHtml += '<div class="check-group">';
+      checksHtml += '<div class="check-group-title ' + key + '">' + groupLabels[key] + ' (' + groups[key].length + ')</div>';
+      for (var j = 0; j < groups[key].length; j++) {
+        var r = groups[key][j];
+        checksHtml += '<div class="check-item ' + r.status + '">';
+        checksHtml += '<span class="check-status ' + r.status + '">' + statusIcon(r.status) + ' ' + r.status + '</span>';
+        checksHtml += '<span class="check-desc">' + escapeHtml(r.title) + ' — ' + escapeHtml(r.desc) + '</span>';
+        if (r.items && r.items.length) {
+          checksHtml += '<ul class="check-details">';
+          for (var k = 0; k < r.items.length; k++) {
+            checksHtml += '<li><code>' + escapeHtml(r.items[k]) + '</code></li>';
+          }
+          checksHtml += '</ul>';
+        }
+        checksHtml += '</div>';
+      }
+      checksHtml += '</div>';
+    }
+    document.getElementById('checks-list').innerHTML = checksHtml;
+
+    // SVG preview
+    var previewLabel = document.getElementById('preview-label');
+    var dimLabel = (svgWidth && svgHeight) ? svgWidth + ' x ' + svgHeight : 'dimensions not set';
+    previewLabel.textContent = currentFileName + '  (' + dimLabel + ')';
+
+    var previewContainer = document.getElementById('preview-container');
+    try {
+      previewContainer.innerHTML = svgText;
+      var previewSvg = previewContainer.querySelector('svg');
+      if (previewSvg) {
+        // Remove Inkscape/Sodipodi namespace elements that disrupt rendering
+        var nsCleanSelectors = ['sodipodi\\:namedview', 'inkscape\\:*', 'metadata'];
+        for (var ns = 0; ns < nsCleanSelectors.length; ns++) {
+          try {
+            var nsEls = previewSvg.querySelectorAll(nsCleanSelectors[ns]);
+            for (var ne = 0; ne < nsEls.length; ne++) nsEls[ne].parentNode.removeChild(nsEls[ne]);
+          } catch (ignore) {}
+        }
+        // Also remove by iterating children with namespace prefixes
+        var toRemove = [];
+        var allPreviewEls = previewSvg.getElementsByTagName('*');
+        for (var pe = 0; pe < allPreviewEls.length; pe++) {
+          var tn = allPreviewEls[pe].tagName.toLowerCase();
+          if (tn.indexOf('sodipodi:') === 0 || tn.indexOf('inkscape:') === 0 || tn === 'metadata') {
+            toRemove.push(allPreviewEls[pe]);
+          }
+        }
+        for (var tr = 0; tr < toRemove.length; tr++) {
+          if (toRemove[tr].parentNode) toRemove[tr].parentNode.removeChild(toRemove[tr]);
+        }
+
+        // If no viewBox exists, derive one from width/height before removing them
+        if (!previewSvg.getAttribute('viewBox') && svgWidth && svgHeight) {
+          var fbW = parseFloat(svgWidth);
+          var fbH = parseFloat(svgHeight);
+          if (!isNaN(fbW) && !isNaN(fbH) && fbW > 0 && fbH > 0) {
+            previewSvg.setAttribute('viewBox', '0 0 ' + fbW + ' ' + fbH);
+          }
+        }
+
+        previewSvg.removeAttribute('width');
+        previewSvg.removeAttribute('height');
+        previewSvg.style.maxWidth = '100%';
+        previewSvg.style.maxHeight = '370px';
+        previewSvg.style.height = 'auto';
+        previewSvg.style.width = 'auto';
+      }
+    } catch (e) {
+      previewContainer.innerHTML = '<p style="color:#888;">Could not render preview.</p>';
+    }
+
+    // Build plain text report for download
+    currentReportText = buildTextReport(results, regionCounts, svgWidth, svgHeight, viewBox);
+  }
+
+  function buildTextReport(results, regionCounts, svgWidth, svgHeight, viewBox) {
+    var lines = [];
+    lines.push('SVG PREFLIGHT REPORT');
+    lines.push('====================');
+    lines.push('File: ' + currentFileName);
+    lines.push('Date: ' + new Date().toISOString().split('T')[0]);
+    lines.push('');
+    lines.push('DIMENSIONS');
+    lines.push('  Width:   ' + (svgWidth || '(not set)'));
+    lines.push('  Height:  ' + (svgHeight || '(not set)'));
+    lines.push('  ViewBox: ' + (viewBox || '(not set)'));
+    lines.push('');
+    lines.push('REGION COUNTS');
+    lines.push('  Process (--ps):   ' + regionCounts.ps);
+    lines.push('  Life Func (--lf): ' + regionCounts.lf);
+    lines.push('  Phase (--ph):     ' + regionCounts.ph);
+    lines.push('  Component (--ci): ' + regionCounts.ci);
+    lines.push('');
+
+    var counts = { error: 0, warning: 0, pass: 0, info: 0 };
+    for (var i = 0; i < results.length; i++) counts[results[i].status]++;
+    lines.push('SUMMARY: ' + counts.error + ' error(s), ' + counts.warning + ' warning(s), ' + counts.pass + ' pass(es), ' + counts.info + ' info');
+    lines.push('');
+
+    var order = ['error', 'warning', 'pass', 'info'];
+    var labels = { error: 'ERRORS', warning: 'WARNINGS', pass: 'PASSED', info: 'INFORMATION' };
+    for (var g = 0; g < order.length; g++) {
+      var key = order[g];
+      var group = [];
+      for (var i = 0; i < results.length; i++) {
+        if (results[i].status === key) group.push(results[i]);
+      }
+      if (group.length === 0) continue;
+      lines.push(labels[key]);
+      lines.push('---');
+      for (var j = 0; j < group.length; j++) {
+        var r = group[j];
+        lines.push('[' + r.status.toUpperCase() + '] ' + r.title + ' — ' + r.desc);
+        if (r.items && r.items.length) {
+          for (var k = 0; k < r.items.length; k++) {
+            lines.push('    - ' + r.items[k]);
+          }
+        }
+      }
+      lines.push('');
+    }
+
+    lines.push('---');
+    lines.push('Generated by SVG Preflight — WelfareData Canvas Navigator');
+    return lines.join('\n');
+  }
+
+  function downloadReport() {
+    if (!currentReportText) return;
+    var blob = new Blob([currentReportText], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = currentFileName.replace(/\.svg$/i, '') + '-preflight-report.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // -- Helpers --
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
+  }
+
+  function metaItem(label, value) {
+    return '<div class="meta-item"><label>' + escapeHtml(label) + '</label><span class="mono">' + escapeHtml(String(value)) + '</span></div>';
+  }
+
+  function statusIcon(s) {
+    switch (s) {
+      case 'error': return '✖';
+      case 'warning': return '⚠';
+      case 'pass': return '✔';
+      case 'info': return 'ℹ';
+      default: return '';
+    }
+  }
+
+  function dedupe(arr) {
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+      if (!seen[arr[i]]) { seen[arr[i]] = true; out.push(arr[i]); }
+    }
+    return out;
+  }
+})();
+</script>
+</body>
+</html>

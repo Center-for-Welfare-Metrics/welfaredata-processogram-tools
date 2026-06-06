@@ -470,6 +470,11 @@ button:hover { background: #3d3d5a; }
             '  |  Component (--ci): ' + regionCounts.ci,
       items: [] });
 
+    // I4: High --ci count performance note
+    if (regionCounts.ci > 250) {
+      results.push({ status: 'info', title: 'High component count', desc: regionCounts.ci + ' --ci groups found. Files with more than 250 components may cause slower initial load in the Canvas Navigator due to tile rasterization.', items: [] });
+    }
+
     // -- ERROR checks --
 
     // E1: width attribute
@@ -512,6 +517,20 @@ button:hover { background: #3d3d5a; }
               if (!hMatch) mismatches.push('viewBox height ' + vbH + ' vs attribute height ' + dimH);
               results.push({ status: 'error', title: 'ViewBox inconsistent with dimensions', desc: 'The viewBox dimensions do not match the width/height attributes.', items: mismatches });
             }
+          }
+        }
+      }
+
+      // W8: viewBox origin not at 0,0
+      var vbOriginParts = viewBox.trim().split(/[\s,]+/);
+      if (vbOriginParts.length === 4) {
+        var minX = parseFloat(vbOriginParts[0]);
+        var minY = parseFloat(vbOriginParts[1]);
+        if (!isNaN(minX) && !isNaN(minY)) {
+          if (minX !== 0 || minY !== 0) {
+            results.push({ status: 'warning', title: 'ViewBox origin is not at 0,0', desc: 'The Canvas Navigator expects coordinates starting at 0,0. A non-zero origin shifts the coordinate system and may cause click targets to appear offset from their visual positions.', items: ['viewBox="' + viewBox + '" — origin is at ' + minX + ',' + minY] });
+          } else {
+            results.push({ status: 'pass', title: 'ViewBox origin is at 0,0', desc: 'The coordinate system starts at the expected origin.', items: [] });
           }
         }
       }
@@ -576,6 +595,42 @@ button:hover { background: #3d3d5a; }
       results.push({ status: 'pass', title: 'No transforms on navigable groups', desc: 'No semantic group carries a transform attribute.', items: [] });
     }
 
+    // E8: External references in <use> elements
+    var useEls = doc.querySelectorAll('use');
+    var extRefs = [];
+    for (var i = 0; i < useEls.length; i++) {
+      var href = useEls[i].getAttribute('href') || useEls[i].getAttributeNS('http://www.w3.org/1999/xlink', 'href') || '';
+      if (href && href.charAt(0) !== '#') {
+        var useId = useEls[i].getAttribute('id');
+        var parentId = useEls[i].parentElement ? useEls[i].parentElement.getAttribute('id') : null;
+        var label = useId ? useId : (parentId ? '<use> inside ' + parentId : 'ref: ' + href);
+        extRefs.push(label + ' → ' + href);
+      }
+    }
+    if (extRefs.length) {
+      results.push({ status: 'error', title: 'External references in <use> elements', desc: 'The motor extracts groups in isolation — external file references in <use> elements cannot be resolved and will cause rasterization failures.', items: extRefs });
+    } else {
+      results.push({ status: 'pass', title: 'All <use> references are internal', desc: 'Every <use> element references an internal symbol only.', items: [] });
+    }
+
+    // E9: Navigable elements inside <defs>
+    var navsInDefs = [];
+    for (var i = 0; i < navigableEls.length; i++) {
+      var ancestor = navigableEls[i].el.parentElement;
+      while (ancestor) {
+        if (ancestor.tagName && ancestor.tagName.toLowerCase() === 'defs') {
+          navsInDefs.push(navigableEls[i].id);
+          break;
+        }
+        ancestor = ancestor.parentElement;
+      }
+    }
+    if (navsInDefs.length) {
+      results.push({ status: 'error', title: 'Navigable elements inside <defs>', desc: 'Elements inside <defs> are not rendered and have no bounding box. The motor cannot extract or rasterize them.', items: navsInDefs });
+    } else {
+      results.push({ status: 'pass', title: 'No navigable elements inside <defs>', desc: 'All navigable groups are in the rendered SVG tree, not inside definitions.', items: [] });
+    }
+
     // -- WARNING checks --
 
     // W1: display:none inside semantic groups
@@ -599,6 +654,35 @@ button:hover { background: #3d3d5a; }
       results.push({ status: 'warning', title: 'Hidden elements inside semantic groups', desc: 'Elements with display:none were found inside navigable regions. This may hide content unintentionally.', items: dedupe(hiddenInside) });
     } else {
       results.push({ status: 'pass', title: 'No hidden elements in semantic groups', desc: 'No display:none found inside any navigable region.', items: [] });
+    }
+
+    // W7: visibility:hidden and opacity:0 inside semantic groups
+    var invisibleInside = [];
+    var visHiddenRe = /visibility\s*:\s*hidden/i;
+    var opacityZeroRe = /opacity\s*:\s*0(\.0+)?\s*(;|$)/i;
+    for (var i = 0; i < navigableEls.length; i++) {
+      var targets = [navigableEls[i].el];
+      var desc = navigableEls[i].el.querySelectorAll('*');
+      for (var d = 0; d < desc.length; d++) targets.push(desc[d]);
+      for (var t = 0; t < targets.length; t++) {
+        var el = targets[t];
+        var st = el.getAttribute('style') || '';
+        var visAttr = el.getAttribute('visibility') || '';
+        var opacAttr = el.getAttribute('opacity') || '';
+        var elId = el.getAttribute('id') || ('<' + el.tagName.toLowerCase() + '> inside ' + navigableEls[i].id);
+        if (el === navigableEls[i].el && el.getAttribute('id')) elId = el.getAttribute('id') + ' (the group itself)';
+        if (visHiddenRe.test(st) || visAttr === 'hidden') {
+          invisibleInside.push(elId + ' (visibility:hidden)');
+        }
+        if (opacityZeroRe.test(st) || /^0(\.0+)?$/.test(opacAttr.trim())) {
+          invisibleInside.push(elId + ' (opacity:0)');
+        }
+      }
+    }
+    if (invisibleInside.length) {
+      results.push({ status: 'warning', title: 'Invisible elements inside semantic groups', desc: 'Elements with visibility:hidden or opacity:0 were found inside navigable regions. They are present in the DOM but invisible to users.', items: dedupe(invisibleInside) });
+    } else {
+      results.push({ status: 'pass', title: 'No invisible elements in semantic groups', desc: 'No visibility:hidden or opacity:0 found inside any navigable region.', items: [] });
     }
 
     // W2: Small --ci bounding boxes (deferred to measurement step)
@@ -685,6 +769,77 @@ button:hover { background: #3d3d5a; }
       results.push({ status: 'warning', title: 'Non-standard -- suffixes', desc: 'These IDs use the -- delimiter but do not match any valid suffix (--ps, --lf, --ph, --ci). They may be typos or unused conventions.', items: nonStandardSuffixes });
     } else {
       results.push({ status: 'pass', title: 'All -- suffixes are standard', desc: 'Every ID using -- matches a recognized navigable suffix.', items: [] });
+    }
+
+    // W9: Stroke-only --ci groups (no fill)
+    var strokeOnlyCIs = [];
+    for (var i = 0; i < navigableEls.length; i++) {
+      if (navigableEls[i].level !== 'ci') continue;
+      var shapes = [];
+      for (var s = 0; s < SHAPE_TAGS.length; s++) {
+        var found = navigableEls[i].el.getElementsByTagName(SHAPE_TAGS[s]);
+        for (var f = 0; f < found.length; f++) shapes.push(found[f]);
+      }
+      if (shapes.length === 0) continue;
+      var allStrokeOnly = true;
+      for (var s = 0; s < shapes.length; s++) {
+        var shapeStyle = shapes[s].getAttribute('style') || '';
+        var fillAttr = shapes[s].getAttribute('fill') || '';
+        var hasFill = true;
+        if (fillAttr === 'none' || /fill\s*:\s*none/i.test(shapeStyle)) {
+          hasFill = false;
+        }
+        if (hasFill) {
+          allStrokeOnly = false;
+          break;
+        }
+      }
+      if (allStrokeOnly) {
+        strokeOnlyCIs.push(navigableEls[i].id);
+      }
+    }
+    if (strokeOnlyCIs.length) {
+      results.push({ status: 'warning', title: 'Stroke-only --ci groups (no fill)', desc: 'These --ci groups contain shapes with fill:none — only strokes are visible. If the stroke is thin, the clickable area may be too narrow for reliable interaction.', items: strokeOnlyCIs });
+    } else {
+      var hasCi = false;
+      for (var i = 0; i < navigableEls.length; i++) { if (navigableEls[i].level === 'ci') { hasCi = true; break; } }
+      if (hasCi) {
+        results.push({ status: 'pass', title: 'No stroke-only --ci groups', desc: 'All --ci groups contain filled shapes.', items: [] });
+      }
+    }
+
+    // W10: Nested <svg> elements
+    var nestedSvgs = doc.querySelectorAll('svg svg');
+    var nestedList = [];
+    for (var i = 0; i < nestedSvgs.length; i++) {
+      var nId = nestedSvgs[i].getAttribute('id');
+      var nParent = nestedSvgs[i].parentElement ? nestedSvgs[i].parentElement.getAttribute('id') : null;
+      var label = nId ? nId : (nParent ? '<svg> inside ' + nParent : '<svg> (no id)');
+      nestedList.push(label);
+    }
+    if (nestedList.length) {
+      results.push({ status: 'warning', title: 'Nested <svg> elements found', desc: 'Nested <svg> elements create independent viewports with their own coordinate systems. This can cause the motor to miscalculate bounding boxes for contained groups.', items: nestedList });
+    } else {
+      results.push({ status: 'pass', title: 'No nested <svg> elements', desc: 'The document uses a single root <svg> element.', items: [] });
+    }
+
+    // W11: Background rect at SVG root level
+    var rootChildren = root.children;
+    var bgRect = null;
+    for (var i = 0; i < rootChildren.length; i++) {
+      var childTag = rootChildren[i].tagName.toLowerCase();
+      if (childTag === 'defs' || childTag === 'metadata' || childTag.indexOf('sodipodi:') === 0 || childTag.indexOf('inkscape:') === 0) continue;
+      if (childTag === 'rect') {
+        bgRect = rootChildren[i];
+      }
+      break;
+    }
+    if (bgRect) {
+      var bgId = bgRect.getAttribute('id');
+      var bgLabel = bgId ? bgId : '<rect> (no id)';
+      results.push({ status: 'warning', title: 'Background rectangle at root level', desc: 'A <rect> is the first rendered element in the SVG root. If this is a background fill, it will be included in every extracted group\'s rasterization. Consider placing it inside a non-navigable group or removing it if the Canvas Navigator provides its own background.', items: [bgLabel] });
+    } else {
+      results.push({ status: 'pass', title: 'No background rectangle at root level', desc: 'The first rendered element in the SVG root is not a bare <rect>.', items: [] });
     }
 
     // -- Render report --

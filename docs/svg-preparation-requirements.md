@@ -48,6 +48,7 @@ When in doubt, compare your file with the Cattle SVG and follow the same overall
 | Matching coordinate space | If the file uses `viewBox`, keep it aligned with the same size values used in `width` and `height`. Prefer `viewBox="0 0 W H"`. |
 | Minimum document size | Prefer at least `1500px` wide and `500px` high. This is a scale and export recommendation, not a required aspect ratio. The proportions of the processogram must follow the conceptual design. The goal is to avoid files that are too small overall or `--ci` elements that require extreme zoom levels to inspect. |
 | Self-contained file | Keep essential fills, strokes, styles, and definitions inside the SVG file itself. Do not rely on page-level styling outside the SVG. |
+| Explicit size | The root `<svg>` must have explicit `width` and `height` attributes as plain pixel numbers — for example `width="1718"`. Do not use unit suffixes such as `mm`, `cm`, or `in`. Non-pixel units cause viewBox inconsistency and break motor normalization. In Inkscape, ensure the document unit is set to `px` before exporting. |
 
 ### Navigable group structure
 
@@ -77,6 +78,7 @@ When in doubt, compare your file with the Cattle SVG and follow the same overall
 | Pattern | Use IDs in the format `name--ps`, `name--lf`, `name--ph`, or `name--ci`. |
 | Uniqueness | Every ID must be unique across the entire SVG. |
 | Safe characters | Use letters, numbers, underscores, and hyphens only. Avoid spaces and special characters. |
+| Numeric suffix format | When numbering multiple instances of the same element, always use a hyphen before the number: `pig--ci-01`, `hen--ci-02`. Never use an underscore before the number (`pig--ci_01`) — the motor only recognizes the hyphen format and will ignore elements with underscore suffixes entirely. |
 | Clear names | Use descriptive base names, such as `shed_a--ps`, `room_01--lf`, or `animal_12--ci`. |
 
 ### Overlapping elements
@@ -180,6 +182,7 @@ Problems in the example above:
 - The navigable ID is on a single shape instead of a group.
 - The parent and child structure is not nested correctly.
 - A navigable item is placed inside `<defs>`.
+- Numeric suffixes use underscore instead of hyphen (`animal--ci_01` instead of `animal--ci-01`).
 
 ### Final checklist before export
 
@@ -191,4 +194,5 @@ Problems in the example above:
 - Thin or hard-to-click elements: do not add invisible hit-areas — not yet supported by the motor. Keep all real visual geometry inside the correct semantic group.
 - Overlapping items are ordered correctly in the file.
 - Background and helper elements do not receive navigable IDs.
+- All numeric suffixes use hyphen format: `--ci-01`, not `--ci_01`.
 - `--ci` items are not too small.

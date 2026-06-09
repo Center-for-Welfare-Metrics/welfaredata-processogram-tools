@@ -30,6 +30,12 @@ The goal is not only visual quality. The SVG must also be structured in a clear 
 ### Reference SVG
 
 Use the Cattle SVG as the main reference file for new work.
+
+> Note (updated Jun 2026): Hatchery v30 is now the structurally 
+> cleanest SVG reference — zero preflight errors, correct naming 
+> conventions throughout. Cattle remains the navigation behavior 
+> reference. For ID naming and export conventions, prefer Hatchery v30.
+
 Today, it is the best example of an SVG that is well organized and behaves correctly in the Canvas Navigator.
 
 When in doubt, compare your file with the Cattle SVG and follow the same overall logic for:

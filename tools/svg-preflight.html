@@ -354,7 +354,7 @@ button:hover { background: #3d3d5a; }
 
   var NAVIGABLE_RE = /--(ps|lf|ph|ci)(-\d+)?$/;
   var SUFFIX_LEVELS = { ps: 0, lf: 1, ph: 2, ci: 3 };
-  var LEVEL_NAMES = { ps: 'Process', lf: 'Life Function', ph: 'Phase', ci: 'Component/Indicator' };
+  var LEVEL_NAMES = { ps: 'Process', lf: 'Life Fate', ph: 'Phase', ci: 'Component/Indicator' };
   var EXPECTED_PARENT = { ci: 'ph', ph: 'lf', lf: 'ps' };
   var SHAPE_TAGS = ['path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline', 'line', 'use', 'image', 'text'];
   var MIN_CI_DIM = 20;
@@ -465,7 +465,7 @@ button:hover { background: #3d3d5a; }
     results.push({ status: 'info', title: 'ViewBox', desc: viewBox || '(not set)', items: [] });
     results.push({ status: 'info', title: 'Region counts',
       desc: 'Process (--ps): ' + regionCounts.ps +
-            '  |  Life Function (--lf): ' + regionCounts.lf +
+            '  |  Life Fate (--lf): ' + regionCounts.lf +
             '  |  Phase (--ph): ' + regionCounts.ph +
             '  |  Component (--ci): ' + regionCounts.ci,
       items: [] });
@@ -489,6 +489,19 @@ button:hover { background: #3d3d5a; }
       results.push({ status: 'error', title: 'Missing height attribute', desc: 'The root <svg> element has no height attribute.', items: [] });
     } else {
       results.push({ status: 'pass', title: 'Height attribute present', desc: 'height="' + svgHeight + '"', items: [] });
+    }
+
+    // E-units: non-pixel units in width/height
+    var unitRe = /[a-zA-Z]+$/;
+    var widthHasUnit = svgWidth.trim() && unitRe.test(svgWidth.trim());
+    var heightHasUnit = svgHeight.trim() && unitRe.test(svgHeight.trim());
+    if (widthHasUnit || heightHasUnit) {
+      var unitIssues = [];
+      if (widthHasUnit) unitIssues.push('width="' + svgWidth + '" — remove the unit suffix, use a plain number');
+      if (heightHasUnit) unitIssues.push('height="' + svgHeight + '" — remove the unit suffix, use a plain number');
+      results.push({ status: 'error', title: 'Non-pixel units in width or height', desc: 'The width and height attributes must be plain numbers without units (e.g. width="1718", not width="153mm"). Non-pixel units break viewBox consistency and motor normalization. In Inkscape, set the document unit to px before exporting.', items: unitIssues });
+    } else if (svgWidth.trim() && svgHeight.trim()) {
+      results.push({ status: 'pass', title: 'Width and height use pixel units', desc: 'Both attributes are plain numbers with no unit suffix.', items: [] });
     }
 
     // E3: viewBox attribute
@@ -799,7 +812,7 @@ button:hover { background: #3d3d5a; }
       }
     }
     if (strokeOnlyCIs.length) {
-      results.push({ status: 'warning', title: 'Stroke-only --ci groups (no fill)', desc: 'These --ci groups contain shapes with fill:none — only strokes are visible. If the stroke is thin, the clickable area may be too narrow for reliable interaction.', items: strokeOnlyCIs });
+      results.push({ status: 'warning', title: 'Stroke-only --ci groups (no fill)', desc: 'These --ci groups contain only stroke shapes (fill:none). Review whether the complete visual geometry is inside the group. If interaction is unreliable, increase the stroke width or restructure the group so all artwork is contained within it. Do not add invisible fills or hit-area shapes — this is not supported by the current motor.', items: strokeOnlyCIs });
     } else {
       var hasCi = false;
       for (var i = 0; i < navigableEls.length; i++) { if (navigableEls[i].level === 'ci') { hasCi = true; break; } }
@@ -1040,7 +1053,7 @@ button:hover { background: #3d3d5a; }
     lines.push('');
     lines.push('REGION COUNTS');
     lines.push('  Process (--ps):   ' + regionCounts.ps);
-    lines.push('  Life Func (--lf): ' + regionCounts.lf);
+    lines.push('  Life Fate (--lf): ' + regionCounts.lf);
     lines.push('  Phase (--ph):     ' + regionCounts.ph);
     lines.push('  Component (--ci): ' + regionCounts.ci);
     lines.push('');

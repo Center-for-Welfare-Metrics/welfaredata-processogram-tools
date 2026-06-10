@@ -50,7 +50,6 @@ When in doubt, compare your file with the Cattle SVG and follow the same overall
 
 | Requirement | Rule |
 |---|---|
-| Explicit size | The root `<svg>` must have explicit `width` and `height` attributes. |
 | Matching coordinate space | If the file uses `viewBox`, keep it aligned with the same size values used in `width` and `height`. Prefer `viewBox="0 0 W H"`. |
 | Minimum document size | Prefer at least `1500px` wide and `500px` high. This is a scale and export recommendation, not a required aspect ratio. The proportions of the processogram must follow the conceptual design. The goal is to avoid files that are too small overall or `--ci` elements that require extreme zoom levels to inspect. |
 | Self-contained file | Keep essential fills, strokes, styles, and definitions inside the SVG file itself. Do not rely on page-level styling outside the SVG. |

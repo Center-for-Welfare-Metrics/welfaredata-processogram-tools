@@ -354,7 +354,7 @@ button:hover { background: #3d3d5a; }
 
   var NAVIGABLE_RE = /--(ps|lf|ph|ci)(-\d+)?$/;
   var SUFFIX_LEVELS = { ps: 0, lf: 1, ph: 2, ci: 3 };
-  var LEVEL_NAMES = { ps: 'Process', lf: 'Life Fate', ph: 'Phase', ci: 'Component/Indicator' };
+  var LEVEL_NAMES = { ps: 'Process', lf: 'Life-Fate', ph: 'Phase', ci: 'Component/Indicator' };
   var EXPECTED_PARENT = { ci: 'ph', ph: 'lf', lf: 'ps' };
   var SHAPE_TAGS = ['path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline', 'line', 'use', 'image', 'text'];
   var MIN_CI_DIM = 20;
@@ -465,7 +465,7 @@ button:hover { background: #3d3d5a; }
     results.push({ status: 'info', title: 'ViewBox', desc: viewBox || '(not set)', items: [] });
     results.push({ status: 'info', title: 'Region counts',
       desc: 'Process (--ps): ' + regionCounts.ps +
-            '  |  Life Fate (--lf): ' + regionCounts.lf +
+            '  |  Life-Fate (--lf): ' + regionCounts.lf +
             '  |  Phase (--ph): ' + regionCounts.ph +
             '  |  Component (--ci): ' + regionCounts.ci,
       items: [] });
@@ -1053,7 +1053,7 @@ button:hover { background: #3d3d5a; }
     lines.push('');
     lines.push('REGION COUNTS');
     lines.push('  Process (--ps):   ' + regionCounts.ps);
-    lines.push('  Life Fate (--lf): ' + regionCounts.lf);
+    lines.push('  Life-Fate (--lf): ' + regionCounts.lf);
     lines.push('  Phase (--ph):     ' + regionCounts.ph);
     lines.push('  Component (--ci): ' + regionCounts.ci);
     lines.push('');

@@ -30,8 +30,8 @@ The Canvas Navigator replaces this with:
 - **Canvas 2D rendering** — the SVG is never injected into the DOM. It is rasterized via `OffscreenCanvas` and drawn with `drawImage()`.
 - **Color-based hit-testing** — four invisible Int32Array layers (one per hierarchy level) allow O(1) pixel lookup with no DOM traversal.
 - **rAF loop at 60fps** — camera with Dirty Flag pattern; only redraws when state changes.
-- **IndexedDB cache** — hit-map is built once per SVG (keyed by SHA-1), then cached locally. Subsequent visits load instantly.
-- **Zero DOM SVG** — no `querySelectorAll`, no `closest()`, no `getBBox()`, no `viewBox` attribute manipulation.
+- **IndexedDB cache** — hit-map is built once per SVG (keyed by SHA-1), then cached locally. Subsequent visits load instantly. Note: initial hitmap construction for large or complex SVGs may take up to 500ms on first load — this cost is amortized by the cache on all subsequent visits.
+- **Zero DOM SVG in the runtime navigation and rendering path** — no `querySelectorAll`, no `closest()`, no `getBBox()`, no `viewBox` attribute manipulation during navigation. DOM APIs are used only during SVG parsing and preprocessing.
 
 ---
 
@@ -47,7 +47,7 @@ Phase 1 validates that the Canvas Navigator correctly loads, renders and navigat
 | Pig | v20 | ❌ FAIL | Pending Jean's fix: 271 underscore suffixes, 10 IDs on `<path>`/`<rect>`, transforms on `--lf` groups |
 | Broilers | v14 | ⚠️ PARTIAL | Pending Jean's fix: missing width/height, 89 underscore suffixes, `--ps` on root `<svg>`, 8 duration labels as `--ci` |
 
-**Next milestone:** Integration spike into WelfareData-New — Jun 9. See [Issue #1](https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools/issues/1).
+**Current milestone:** Stabilization and legacy motor removal — week of Jun 23. Integration spike delivered week of Jun 16. See [Issue #1](https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools/issues/1) for full state and video evidence.
 
 ---
 
@@ -202,18 +202,20 @@ The Canvas Navigator is being integrated into **WelfareData-New** — the full p
 
 **Repository:** [Center-for-Welfare-Metrics/WelfareData-New](https://github.com/Center-for-Welfare-Metrics/WelfareData-New)
 
-**Integration scope (Jun 9 spike):**
-- Canvas Navigator loaded inside WelfareData-New
-- Node selection with breadcrumb and hierarchy preserved
-- Selected node ID and name exposed to the React interface
-- Motor communicates via Custom Events (`region:hover`, `region:click`) — zero coupling to React internals
+**Integration delivered — week of Jun 16:**
+- Canvas Navigator ported to `frontend/src/lib/canvas-navigator/`
+- React adapter hook at `frontend/src/components/processogram/navigator/useCanvasNavigator.ts`
+- Node selection, drill-down, drill-up, breadcrumb, and Home all working
+- Selected node ID and name exposed to the React interface via `onNodeSelected` callback
+- SidePanel displays motor label and fetches element descriptions by ID
+- Canvas reframes correctly when SidePanel opens and closes
 
-**Out of scope for the spike:**
-- AI-generated descriptions (requires Gemini API Key rotation)
-- Full side panel implementation
-- Admin panel advanced features
-- Visual configurable parameters
-- Hover highlight
+**Remaining for stabilization week (Jun 23):**
+- Remove legacy motor files and packages in a separate commit
+- Remove diagnostic console.log statements
+- AI-generated descriptions — requires Gemini API Key; pending Wladimir
+- Full side panel, admin features, visual parameters — post-spike
+- Hover highlight — Canvas 2D structural limitation, post-Phase 1
 
 ---
 
@@ -223,7 +225,7 @@ The Canvas Navigator is being integrated into **WelfareData-New** — the full p
 |---|---|---|
 | Gabriel | Developer (freelance) | Canvas Navigator engine, WelfareData-New integration, documentation, coordination with Jean |
 | Jean | SVG Designer | Processogram SVG creation and correction. Uses Inkscape and Adobe Illustrator. |
-| Wladimir | Product owner (WFI) | Architectural and product decisions |
+| Wladimir | Product owner (WFI) | Architectural and product decisions, Gemini API Key, coordination with Herikle for domain handoff |
 | Herikle | Legacy system developer | One pending action: disconnect `app.welfaredata.org` from his Vercel account when the new system is ready |
 
 ---

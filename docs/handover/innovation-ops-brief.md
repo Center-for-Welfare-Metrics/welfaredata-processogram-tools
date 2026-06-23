@@ -119,9 +119,7 @@ structural problems in their SVG files that Jean needs to fix before they can pa
 | Pig v20 | ❌ Failed | Pending Jean's fix: 271 elements named with wrong format (underscore instead of hyphen), 10 elements in wrong type, two groups with forbidden positioning. |
 | Broilers v14 | ⚠️ Partial | Pending Jean's fix: missing dimensions, 89 elements named with wrong format, one group in wrong place, 8 labels incorrectly marked as interactive. |
 
-**Important:** the problems in Laying Hens, Pig, and Broilers are structural issues in
-the SVG files — not bugs in the Canvas Navigator. Jean has been notified with specific
-instructions for each file. The engine itself is working correctly.
+**Integration spike — delivered week of Jun 16.** The Canvas Navigator is now running inside WelfareData-New. Full navigation is working: drill-down, drill-up, breadcrumb, Home button, and selected element ID and name reaching the React interface and SidePanel. Cattle v20 and Hatchery v30 validated. Stabilization and legacy motor removal in progress during the buffer week of Jun 23.
 
 ### The preflight tool
 
@@ -147,10 +145,10 @@ This is called the "integration spike."
 
 | Target date | Deliverable |
 |---|---|
-| June 9 | Canvas Navigator loaded inside WelfareData-New. Users can navigate Cattle and Hatchery processograms. Clicking a node shows its ID and name. Breadcrumb and hierarchy work. |
-| June 16 | Spike stabilized. Minimal panel displays the selected element's name and ID. AI descriptions begin loading per element (pending Gemini API Key). |
-| June 23 | Buffer week — absorbs any complexity discovered during the spike. |
-| TBD | Full production deployment on Google Cloud Run. Domain handoff from Herikle. |
+| Jun 9 | Documentation round completed — README, AGENTS.md, handover brief, issue corrections | ✅ Done |
+| Jun 16 | Integration spike delivered — Canvas Navigator loaded in WelfareData-New, full navigation, breadcrumb, ID and name of selected node in React interface | ✅ Done |
+| Jun 23 (buffer) | Stabilization — legacy motor removal, log cleanup, video evidence recorded | 🔄 In progress |
+| TBD | Cloud Run deployment, domain handoff from Herikle | ⏳ Pending |
 
 **What is in scope for the spike:**
 - Navigator loaded and functional in WelfareData-New
@@ -247,7 +245,7 @@ happens if it is not resolved in time.
 | Gemini API Key regeneration | Wladimir | AI descriptions will not work in the platform. Does not block the navigation integration. |
 | Domain handoff from Herikle | Wladimir (coordinates with Herikle) | The new platform cannot go live on welfaredata.org until this is done. |
 | Google Cloud Run deployment | Gabriel + Wladimir | The platform stays in local development only — not accessible to users. |
-| Repository migration to WFI GitHub organization | Wladimir (decides org name and setup) | No operational impact. Cosmetic — affects where the code lives and who owns it formally. Planned after the integration spike. |
+| Repository migration to WFI GitHub organization — governance and ownership cleanup; not a functional blocker. Planned after integration spike stabilization. |
 
 ---
 

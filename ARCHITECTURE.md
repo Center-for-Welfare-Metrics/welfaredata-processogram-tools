@@ -7,10 +7,7 @@ implemented on top of Canvas 2D. The user loads an SVG whose regions encode a
 hierarchy and can navigate through that hierarchy with drill-down, drill-up,
 breadcrumb navigation, smooth camera animation, and pixel-perfect hit-testing.
  
-This repository contains the standalone prototype. The Canvas Navigator is being
-integrated into the WelfareData-New platform (Next.js + React + Express + MongoDB)
-as the primary viewer for processograms on welfaredata.org, replacing the legacy
-DOM SVG navigation system.
+This repository contains the standalone prototype. The Canvas Navigator has been integrated into the WelfareData-New platform (Next.js + React + Express + MongoDB) as the primary viewer for processograms on welfaredata.org, replacing the legacy DOM SVG navigation system. Integration spike delivered June 2026.
  
 ## Data flow diagram
  

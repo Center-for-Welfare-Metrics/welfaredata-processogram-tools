@@ -378,21 +378,18 @@ motor handles it" — the motor does not compensate for structural SVG errors.
 
 **Communication rules:**
 - Technical decisions → always in writing, referenced in issues or docs
-- Messages for Jean → WhatsApp, always English + Portuguese (EN + PT-BR)
+- Messages for Jean → WhatsApp, English by default. Portuguese only with Wladimir in conversations outside groups shared with Jean. Documentation always in English.
 - Messages for Wladimir → Upwork or email, formal, with links to issues/docs
 
 ---
 
 ## Current phase and next milestone
 
-- **Current:** Phase 1 — validating Canvas Navigator against priority SVGs
-- **Validated:** Cattle v20 ✅, Hatchery v30 ✅
+- **Current:** Integration stabilization — week of Jun 23
+- **Integration spike delivered (Jun 16):** Canvas Navigator loaded in WelfareData-New, full navigation working, ID and name of selected node exposed to React, SidePanel displaying motor labels
+- **Validated in WelfareData-New:** Cattle v20 ✅, Hatchery v30 ✅
 - **Pending Jean's fixes:** Laying Hens v27 ⚠️, Pig v20 ❌, Broilers v14 ⚠️
-- **Next:** Integration spike into WelfareData-New — week of Jun 9
-  - Canvas Navigator loaded inside WelfareData-New
-  - Node selection with breadcrumb and hierarchy preserved
-  - Selected node ID/name exposed to React interface via Custom Events
-  - Base SVGs: Cattle v20 + Hatchery v30
+- **Next:** Legacy motor removal (separate commit), diagnostic log cleanup, then Cloud Run deployment
 
 See [Issue #1](https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools/issues/1)
 for the full test matrix, video evidence, and blocker tracking.

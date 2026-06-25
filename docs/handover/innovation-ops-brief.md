@@ -85,7 +85,7 @@ environment. It is not yet in production. The only missing piece is the navigati
 engine — the component that lets users click through the processogram hierarchy
 interactively. That is what the Canvas Navigator provides.
 
-### 3. The Canvas Navigator (the new engine — in validation)
+### 3. The Canvas Navigator (the new engine — integrated)
 
 The Canvas Navigator is the new interactive navigation engine, developed by Gabriel.
 It replaces the slow navigation approach of the Herikle system with a fundamentally
@@ -96,8 +96,10 @@ navigate deeper, use the breadcrumb to go back. What changes is what happens und
 the hood — the new engine is fast, smooth at 60 frames per second, and scales to
 processograms of any complexity without degradation.
 
-The Canvas Navigator is currently being validated against the existing processogram
-SVG files before being integrated into WelfareData-New.
+The Canvas Navigator has been validated with Cattle v20 and Hatchery v30, and integrated
+into WelfareData-New. Full navigation is working in the platform. The remaining SVGs
+(Laying Hens, Pig, Broilers) are pending Jean's structural corrections and can be
+validated in parallel with the ongoing stabilization.
 
 ---
 
@@ -119,7 +121,7 @@ structural problems in their SVG files that Jean needs to fix before they can pa
 | Pig v20 | ❌ Failed | Pending Jean's fix: 271 elements named with wrong format (underscore instead of hyphen), 10 elements in wrong type, two groups with forbidden positioning. |
 | Broilers v14 | ⚠️ Partial | Pending Jean's fix: missing dimensions, 89 elements named with wrong format, one group in wrong place, 8 labels incorrectly marked as interactive. |
 
-**Integration spike — delivered week of Jun 16.** The Canvas Navigator is now running inside WelfareData-New. Full navigation is working: drill-down, drill-up, breadcrumb, Home button, and selected element ID and name reaching the React interface and SidePanel. Cattle v20 and Hatchery v30 validated. Stabilization and legacy motor removal in progress during the buffer week of Jun 23.
+**Integration spike — delivered week of Jun 16.** The Canvas Navigator is now running inside WelfareData-New. Full navigation is working: drill-down, drill-up, breadcrumb, Home button, and selected element ID and name reaching the React interface and SidePanel. Cattle v20 and Hatchery v30 validated. Stabilization largely complete during the buffer week of Jun 23: legacy motor removed, logs cleaned, camera animation centralized and refined. Pending: Wladimir's approval of the final animation speed and repository migration planning.
 
 ### The preflight tool
 
@@ -147,8 +149,7 @@ This is called the "integration spike."
 |---|---|
 | Jun 9 | Documentation round completed — README, AGENTS.md, handover brief, issue corrections | ✅ Done |
 | Jun 16 | Integration spike delivered — Canvas Navigator loaded in WelfareData-New, full navigation, breadcrumb, ID and name of selected node in React interface | ✅ Done |
-| Jun 23 (buffer) | Stabilization — legacy motor removal, log cleanup, video evidence recorded | 🔄 In progress |
-| TBD | Cloud Run deployment, domain handoff from Herikle | ⏳ Pending |
+| Jun 23 (buffer) | Stabilization — legacy motor removed ✅, logs cleaned ✅, camera speed centralized ✅, zoom fixes applied ✅, speed videos sent to Wladimir ⏳ | 🔄 Near complete |
 
 **What is in scope for the spike:**
 - Navigator loaded and functional in WelfareData-New
@@ -175,7 +176,7 @@ Illustrator. Jean's work is the raw material that everything else depends on.
 - Fix Laying Hens, Pig, and Broilers according to the specific instructions provided
 - Run the preflight tool on every SVG before delivery
 - Use Hatchery v30 as the structural reference for all new and corrected files
-- Communicate issues or questions via WhatsApp (in English or Portuguese)
+- Communicate issues or questions via WhatsApp, in English by default
 
 **Jean does not make decisions about:** what elements should be interactive, how the
 hierarchy is structured scientifically, or what the platform does with the SVG content.
@@ -245,7 +246,7 @@ happens if it is not resolved in time.
 | Gemini API Key regeneration | Wladimir | AI descriptions will not work in the platform. Does not block the navigation integration. |
 | Domain handoff from Herikle | Wladimir (coordinates with Herikle) | The new platform cannot go live on welfaredata.org until this is done. |
 | Google Cloud Run deployment | Gabriel + Wladimir | The platform stays in local development only — not accessible to users. |
-| Repository migration to WFI GitHub organization — governance and ownership cleanup; not a functional blocker. Planned after integration spike stabilization. |
+| Repository migration to WFI GitHub organization — governance and ownership cleanup; not a functional blocker | Wladimir (decides org setup) | No operational impact. Planned after integration spike stabilization. Both repositories (welfaredata-processogram-tools and WelfareData-New) will be migrated. |
 
 ---
 
@@ -261,7 +262,7 @@ they are not.
 | AI descriptions not working yet | Requires a Gemini API Key that has not yet been regenerated. Navigation works independently of AI descriptions. |
 | Full side panel | Out of scope for the spike. Will be built after the navigation integration is stable. |
 | Dark mode for processograms | Planned for a future phase. Structural decisions are already being made with this in mind. |
-| Repository migration | Does not affect any functionality. Can be done at any time after the integration spike. |
+| Repository migration | Does not affect any functionality. Planned after integration spike stabilization. Both repositories will be migrated to welfare-footprint-institute. Migration checklist being prepared. |
 
 ---
 

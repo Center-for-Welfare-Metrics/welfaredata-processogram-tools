@@ -167,7 +167,7 @@ Critical rules at a glance:
 | Feature | Status | Notes |
 |---|---|---|
 | Hover highlight | Not implemented | Canvas 2D structural limitation. Four approaches tested (Path2D clip, Blob cache CSS, SVG clone, bbox compositing) — all cause visible rectangles, OOM, or first-hover delay. Nice-to-have post-Phase 1. |
-| AI descriptions | Out of scope | Handled by WelfareData-New backend (Gemini 2.5-Flash). Not part of the standalone navigator. |
+| AI descriptions | Partially integrated | The SidePanel already fetches and displays descriptions stored in the database per element ID. Generating new descriptions via Gemini 2.5-Flash requires a new API key — pending Wladimir. Not a blocker for navigation. |
 | Light/dark theming | Roadmap | See [Issue #3](https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools/issues/3). Three-layer principle must be respected: visual art, semantic structure, and interaction geometry are separate concerns. |
 
 ---
@@ -210,11 +210,19 @@ The Canvas Navigator is being integrated into **WelfareData-New** — the full p
 - SidePanel displays motor label and fetches element descriptions by ID
 - Canvas reframes correctly when SidePanel opens and closes
 
-**Remaining for stabilization week (Jun 23):**
-- Remove legacy motor files and packages in a separate commit
-- Remove diagnostic console.log statements
-- AI-generated descriptions — requires Gemini API Key; pending Wladimir
-- Full side panel, admin features, visual parameters — post-spike
+**Stabilization (Jun 23) — completed:**
+- ✅ Legacy motor files and packages removed (Commit 2)
+- ✅ Diagnostic console.log statements removed
+- ✅ Camera animation speed centralized in `CAMERA_CONFIG.lerpFactor`
+- ✅ Log-lerp applied for perceptually symmetric zoom — zoom-in and zoom-out now feel equivalent
+- ✅ Camera drift fixed — scale and translation advance the same fractional progress per frame
+
+**Pending Wladimir's input:**
+- ⏳ Final lerpFactor value — three speed options sent for comparison (0.08 / 0.05 / 0.01)
+
+**Post-stabilization:**
+- AI-generated descriptions — requires Gemini API Key; Wladimir generates when ready
+- Full side panel, admin features, visual parameters — post-spike scope
 - Hover highlight — Canvas 2D structural limitation, post-Phase 1
 
 ---

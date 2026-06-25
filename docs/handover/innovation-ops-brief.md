@@ -69,7 +69,7 @@ This system is being replaced. Herikle is aware and has one pending action when 
 time comes: disconnect the domain `app.welfaredata.org` from his personal Vercel account
 so it can be pointed to the new system.
 
-### 2. WelfareData-New (the full platform — ready, awaiting the navigator)
+### 2. WelfareData-New (the full platform — Canvas Navigator integrated)
 
 In parallel with the Herikle system, Gabriel built WelfareData-New — a complete rebuild
 of the platform from scratch. It includes:
@@ -81,9 +81,9 @@ of the platform from scratch. It includes:
 - A database (MongoDB) storing all content and metadata
 
 WelfareData-New is feature-complete and runs correctly in a local development
-environment. It is not yet in production. The only missing piece is the navigation
-engine — the component that lets users click through the processogram hierarchy
-interactively. That is what the Canvas Navigator provides.
+environment. It is not yet in production. The Canvas Navigator has been integrated
+as the navigation engine — users can now click through the processogram hierarchy
+interactively with full breadcrumb, drill-down, drill-up, and Home navigation.
 
 ### 3. The Canvas Navigator (the new engine — integrated)
 
@@ -93,8 +93,10 @@ different technical approach that eliminates the performance problem entirely.
 
 From the user's perspective, the experience is the same: click an element, zoom in,
 navigate deeper, use the breadcrumb to go back. What changes is what happens under
-the hood — the new engine is fast, smooth at 60 frames per second, and scales to
-processograms of any complexity without degradation.
+the hood — the new engine is fast, smooth at 60 frames per second, and performs significantly
+better than the legacy system on large processograms. Initial hitmap construction
+may take up to 500ms on very large SVGs on first load — this cost is amortized by
+a local cache on all subsequent visits.
 
 The Canvas Navigator has been validated with Cattle v20 and Hatchery v30, and integrated
 into WelfareData-New. Full navigation is working in the platform. The remaining SVGs
@@ -121,7 +123,8 @@ structural problems in their SVG files that Jean needs to fix before they can pa
 | Pig v20 | ❌ Failed | Pending Jean's fix: 271 elements named with wrong format (underscore instead of hyphen), 10 elements in wrong type, two groups with forbidden positioning. |
 | Broilers v14 | ⚠️ Partial | Pending Jean's fix: missing dimensions, 89 elements named with wrong format, one group in wrong place, 8 labels incorrectly marked as interactive. |
 
-**Integration spike — delivered week of Jun 16.** The Canvas Navigator is now running inside WelfareData-New. Full navigation is working: drill-down, drill-up, breadcrumb, Home button, and selected element ID and name reaching the React interface and SidePanel. Cattle v20 and Hatchery v30 validated. Stabilization largely complete during the buffer week of Jun 23: legacy motor removed, logs cleaned, camera animation centralized and refined. Pending: Wladimir's approval of the final animation speed and repository migration planning.
+**Integration spike — delivered week of Jun 16.** The Canvas Navigator is now running inside WelfareData-New. Full navigation is working: drill-down, drill-up, breadcrumb, Home button, and selected element ID and name reaching the React interface and SidePanel. Cattle v20 and Hatchery v30 validated. Stabilization largely complete during the buffer week of Jun 23: legacy motor removed, logs cleaned, camera animation centralized and refined. Camera animation speed approved by Wladimir: lerpFactor = 0.01. Stabilization concluded, except for frame-rate normalization (pending implementation) and SVG
+retests for Laying Hens, Pig, and Broilers (pending Jean's corrections).
 
 ### The preflight tool
 
@@ -209,8 +212,9 @@ decisions go through him.
 - Coordinate with Herikle to release the domain `app.welfaredata.org` when the new
   system is ready for production
 - Approve architectural decisions and integration milestones
-- Decide on repository migration to a WFI-owned GitHub organization (planned after
-  the integration spike — does not block anything)
+- Confirm timing and org setup for repository migration to welfare-footprint-institute
+  (migration checklist prepared — both welfaredata-processogram-tools and WelfareData-New
+  will be migrated; planned after integration spike stabilization)
 
 **Wladimir's preference:** be consulted for approvals, not used as a memory system.
 Decisions must be documented in GitHub issues and docs — not just communicated by

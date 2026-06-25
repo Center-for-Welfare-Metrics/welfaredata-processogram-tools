@@ -26,7 +26,8 @@ spike stabilization.
 
 - [ ] Confirm the `welfare-footprint-institute` organization exists on GitHub
 - [ ] Confirm Wladimir has Owner role in the destination organization
-- [ ] Confirm Gabriel has at minimum Write access (or Admin) in the destination organization
+- [ ] Confirm Gabriel has Admin access to the source repositories (required to execute the transfer on GitHub)
+- [ ] Confirm Gabriel has permission to create or receive repositories in the welfare-footprint-institute organization (set by Wladimir as Owner of the destination org)
 - [ ] Confirm no repository named `welfaredata-processogram-tools` exists in `welfare-footprint-institute`
 - [ ] Confirm no repository named `WelfareData-New` exists in `welfare-footprint-institute`
 - [ ] Confirm neither repository has active CI/CD pipelines, webhooks, or external integrations that would break on URL change (e.g. Easypanel deploy hooks, Vercel integrations)
@@ -73,11 +74,16 @@ GitHub Issues must be updated manually.
 | File | Links to update | Notes |
 |---|---|---|
 | `frontend/src/components/processogram/navigator/INTEGRATION.md` | ~2 | Prototype repository URL, Issue links |
+| `docs/index.md` | Clone URL (`Center-for-Welfare-Metrics`), platform description referencing old organization | Wladimir mentioned explicitly |
 
 **Approach:** search for `Center-for-Welfare-Metrics/WelfareData-New` and
 `Center-for-Welfare-Metrics/welfaredata-processogram-tools` across the repository
-and replace accordingly. The main codebase has no hardcoded GitHub URLs — only
-INTEGRATION.md is affected.
+and replace accordingly. The main codebase has no hardcoded GitHub URLs — only the documentation files listed above are known to be affected at this time.
+
+**Important:** do not assume only the files listed above are affected.
+Before executing the migration, run a full text search for `Center-for-Welfare-Metrics`
+across the entire WelfareData-New repository and review every result.
+The list above reflects known occurrences at the time of writing.
 
 ---
 

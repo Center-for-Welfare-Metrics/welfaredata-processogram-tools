@@ -47,7 +47,7 @@ Phase 1 validates that the Canvas Navigator correctly loads, renders and navigat
 | Pig | v20 | ❌ FAIL | Pending Jean's fix: 271 underscore suffixes, 10 IDs on `<path>`/`<rect>`, transforms on `--lf` groups |
 | Broilers | v14 | ⚠️ PARTIAL | Pending Jean's fix: missing width/height, 89 underscore suffixes, `--ps` on root `<svg>`, 8 duration labels as `--ci` |
 
-**Current milestone:** Stabilization and legacy motor removal — week of Jun 23. Integration spike delivered week of Jun 16. See [Issue #1](https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools/issues/1) for full state and video evidence.
+**Current milestone:** Integration and stabilization complete — `lerpFactor = 0.01` approved, frame-rate normalization applied, legacy documentation cleaned. Open items: Jean's SVG corrections and repository migration decision. See [Issue #1](https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools/issues/1) for full state and video evidence.
 
 ---
 
@@ -198,7 +198,7 @@ The prototype runs the Canvas Navigator standalone with the validated SVGs. Use 
 
 ## Integration
 
-The Canvas Navigator is being integrated into **WelfareData-New** — the full platform (Next.js 16 + React 19 + Express 5 + MongoDB + Google Cloud Storage + Gemini 2.5-Flash).
+The Canvas Navigator has been integrated and stabilized in **WelfareData-New** — the full platform (Next.js 16 + React 19 + Express 5 + MongoDB + Google Cloud Storage + Gemini 2.5-Flash).
 
 **Repository:** [Center-for-Welfare-Metrics/WelfareData-New](https://github.com/Center-for-Welfare-Metrics/WelfareData-New)
 
@@ -216,12 +216,14 @@ The Canvas Navigator is being integrated into **WelfareData-New** — the full p
 - ✅ Camera animation speed centralized in `CAMERA_CONFIG.lerpFactor`
 - ✅ Log-lerp applied for perceptually symmetric zoom — zoom-in and zoom-out now feel equivalent
 - ✅ Camera drift fixed — scale and translation advance the same fractional progress per frame
+- ✅ `lerpFactor = 0.01` approved by Wladimir and committed
+- ✅ Frame-rate normalization — `animateCamera` normalizes by delta time; consistent speed at 60Hz and 120Hz
+- ✅ Legacy documentation cleaned in WelfareData-New
 
-**Pending Wladimir's input:**
-- ⏳ Final lerpFactor value — three speed options sent for comparison (0.08 / 0.05 / 0.01)
-
-**Post-stabilization:**
-- AI-generated descriptions — requires Gemini API Key; Wladimir generates when ready
+**Open items (independent of stabilization):**
+- Jean's SVG corrections — Laying Hens, Pig, Broilers pending Jean's fixes
+- Repository migration — both repositories to welfare-footprint-institute; checklist prepared, timing pending Wladimir
+- New AI description generation — existing descriptions stored in the database are already displayed by the SidePanel; generating new descriptions requires Gemini API Key
 - Full side panel, admin features, visual parameters — post-spike scope
 - Hover highlight — Canvas 2D structural limitation, post-Phase 1
 

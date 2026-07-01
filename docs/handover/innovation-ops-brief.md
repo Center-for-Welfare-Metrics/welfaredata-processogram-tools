@@ -123,8 +123,7 @@ structural problems in their SVG files that Jean needs to fix before they can pa
 | Pig v20 | ❌ Failed | Pending Jean's fix: 271 elements named with wrong format (underscore instead of hyphen), 10 elements in wrong type, two groups with forbidden positioning. |
 | Broilers v14 | ⚠️ Partial | Pending Jean's fix: missing dimensions, 89 elements named with wrong format, one group in wrong place, 8 labels incorrectly marked as interactive. |
 
-**Integration spike — delivered week of Jun 16.** The Canvas Navigator is now running inside WelfareData-New. Full navigation is working: drill-down, drill-up, breadcrumb, Home button, and selected element ID and name reaching the React interface and SidePanel. Cattle v20 and Hatchery v30 validated. Stabilization largely complete during the buffer week of Jun 23: legacy motor removed, logs cleaned, camera animation centralized and refined. Camera animation speed approved by Wladimir: lerpFactor = 0.01. Stabilization concluded, except for frame-rate normalization (pending implementation) and SVG
-retests for Laying Hens, Pig, and Broilers (pending Jean's corrections).
+**Integration spike — delivered week of Jun 16.** The Canvas Navigator is now running inside WelfareData-New. Full navigation is working: drill-down, drill-up, breadcrumb, Home button, and selected element ID and name reaching the React interface and SidePanel. Cattle v20 and Hatchery v30 validated. Stabilization largely complete during the buffer week of Jun 23: legacy motor removed, logs cleaned, camera animation centralized and refined. Camera animation speed approved by Wladimir: lerpFactor = 0.01. Frame-rate normalization implemented — animateCamera normalizes by delta time, consistent speed at 60Hz and 120Hz. Stabilization concluded. Open items: SVG retests for Laying Hens, Pig, and Broilers (pending Jean's corrections) and repository migration (pending Wladimir's confirmation).
 
 ### The preflight tool
 
@@ -152,7 +151,7 @@ This is called the "integration spike."
 |---|---|
 | Jun 9 | Documentation round completed — README, AGENTS.md, handover brief, issue corrections | ✅ Done |
 | Jun 16 | Integration spike delivered — Canvas Navigator loaded in WelfareData-New, full navigation, breadcrumb, ID and name of selected node in React interface | ✅ Done |
-| Jun 23 (buffer) | Stabilization — legacy motor removed ✅, logs cleaned ✅, camera speed centralized ✅, zoom fixes applied ✅, speed videos sent to Wladimir ⏳ | 🔄 Near complete |
+| Jun 23 (buffer) | Stabilization — legacy motor removed ✅, logs cleaned ✅, camera speed centralized ✅, zoom fixes applied ✅, lerpFactor = 0.01 approved ✅, frame-rate normalization ✅, legacy docs cleaned ✅ | ✅ Done |
 
 **What is in scope for the spike:**
 - Navigator loaded and functional in WelfareData-New
@@ -247,7 +246,7 @@ happens if it is not resolved in time.
 
 | Decision | Owner | Impact if delayed |
 |---|---|---|
-| Gemini API Key regeneration | Wladimir | AI descriptions will not work in the platform. Does not block the navigation integration. |
+| Gemini API Key regeneration | Wladimir | Existing descriptions stored in the database are already displayed by the SidePanel. The key is only needed to generate new descriptions for processograms not yet analyzed. Does not block navigation. |
 | Domain handoff from Herikle | Wladimir (coordinates with Herikle) | The new platform cannot go live on welfaredata.org until this is done. |
 | Google Cloud Run deployment | Gabriel + Wladimir | The platform stays in local development only — not accessible to users. |
 | Repository migration to WFI GitHub organization — governance and ownership cleanup; not a functional blocker | Wladimir (decides org setup) | No operational impact. Planned after integration spike stabilization. Both repositories (welfaredata-processogram-tools and WelfareData-New) will be migrated. |
@@ -263,7 +262,7 @@ they are not.
 |---|---|
 | Laying Hens, Pig, Broilers SVG fixes | Cattle and Hatchery are sufficient to begin the integration spike. The other SVGs can be validated in parallel. |
 | Hover highlight | This is a known technical limitation of the rendering approach. It has been investigated and classified as a nice-to-have for after Phase 1. It does not affect navigation. |
-| AI descriptions not working yet | Requires a Gemini API Key that has not yet been regenerated. Navigation works independently of AI descriptions. |
+| Generating new AI descriptions | Existing descriptions are already displayed by the SidePanel. Generating new ones requires a Gemini API Key not yet regenerated. Navigation works independently. |
 | Full side panel | Out of scope for the spike. Will be built after the navigation integration is stable. |
 | Dark mode for processograms | Planned for a future phase. Structural decisions are already being made with this in mind. |
 | Repository migration | Does not affect any functionality. Planned after integration spike stabilization. Both repositories will be migrated to welfare-footprint-institute. Migration checklist being prepared. |

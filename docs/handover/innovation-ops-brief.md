@@ -121,14 +121,14 @@ structural problems in their SVG files that Jean needs to fix before they can pa
 | Hatchery v30 | ✅ Accepted | Fully validated. Cleanest SVG structure — reference for future files. |
 | Laying Hens v27 | ⚠️ Partial | Pending Jean's fix: dimensions exported in wrong units, one element in wrong format. |
 | Pig v20 | ❌ Failed | Pending Jean's fix: 271 elements named with wrong format (underscore instead of hyphen), 10 elements in wrong type, two groups with forbidden positioning. |
-| Broilers v14 | ⚠️ Partial | Pending Jean's fix: missing dimensions, 89 elements named with wrong format, one group in wrong place, 8 labels incorrectly marked as interactive. |
+| Broilers v17 | ⚠️ Partial | Progress: dimensions fixed, most naming errors fixed (89→9), most interactive labels fixed (8→1). Remaining: electrical_waterbath_stunning_--ps in wrong element type, 27 elements in wrong type (including 23 individual broilers on <path>), 9 remaining naming errors, 1 label still incorrectly marked as interactive. |
 
 **Integration spike — delivered week of Jun 16.** The Canvas Navigator is now running inside WelfareData-New. Full navigation is working: drill-down, drill-up, breadcrumb, Home button, and selected element ID and name reaching the React interface and SidePanel. Cattle v20 and Hatchery v30 validated. Stabilization largely complete during the buffer week of Jun 23: legacy motor removed, logs cleaned, camera animation centralized and refined. Camera animation speed approved by Wladimir: lerpFactor = 0.01. Frame-rate normalization implemented — animateCamera normalizes by delta time, consistent speed at 60Hz and 120Hz. Stabilization concluded. Open items: SVG retests for Laying Hens, Pig, and Broilers (pending Jean's corrections) and repository migration (pending Wladimir's confirmation).
 
 ### The preflight tool
 
 To prevent these problems from recurring, Gabriel built a preflight checker
-(`tools/svg-preflight.html`, also available online at https://welfaredata-pre-flight.ulsyy6.easypanel.host/) — a tool that Jean opens in a browser,
+(`tools/svg-preflight.html`, also available online at https://welfaredata-pre-flight.ulsyy6.easypanel.host/) — a tool that Jean opens in a browser, drops an SVG file onto, and immediately receives a report of any issues.
 
 From June 2026 onward, every SVG must pass the preflight before being delivered.
 Issues marked as errors must be fixed. Issues marked as warnings must be explained.

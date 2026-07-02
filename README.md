@@ -45,7 +45,7 @@ Phase 1 validates that the Canvas Navigator correctly loads, renders and navigat
 | Hatchery | v30 | ✅ PASS | Structural reference — cleanest SVG |
 | Laying Hens | v27 | ⚠️ PARTIAL | Pending Jean's fix: width/height in mm, 1 ID on `<path>` |
 | Pig | v20 | ❌ FAIL | Pending Jean's fix: 271 underscore suffixes, 10 IDs on `<path>`/`<rect>`, transforms on `--lf` groups |
-| Broilers | v14 | ⚠️ PARTIAL | Pending Jean's fix: missing width/height, 89 underscore suffixes, `--ps` on root `<svg>`, 8 duration labels as `--ci` |
+| Broilers | v17 | ⚠️ PARTIAL | Progress: width/height fixed, underscore IDs 89→9. Remaining: `electrical_waterbath_stunning_--ps` on root `<svg>`, 27 navigable IDs on `<path>`/`<line>` (including 23 individual broilers), 9 underscore IDs, 1 duration label |
 
 **Current milestone:** Integration and stabilization complete — `lerpFactor = 0.01` approved, frame-rate normalization applied, legacy documentation cleaned. Open items: Jean's SVG corrections and repository migration decision. See [Issue #1](https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools/issues/1) for full state and video evidence.
 

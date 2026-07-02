@@ -37,14 +37,6 @@ export class Camera {
 }
 
 export function bboxToCamera(bbox: BBox, canvasW: number, canvasH: number): Camera {
-  // DEBUG
-  console.log('[bboxToCamera] called', {
-    bbox,
-    canvasW,
-    canvasH,
-    stack: new Error().stack?.split('\n').slice(1, 4).join(' | ')
-  });
-  // FIM DEBUG
 
   const padding = 0.90;
   const scaleX = (canvasW * padding) / bbox.width;
@@ -53,10 +45,6 @@ export function bboxToCamera(bbox: BBox, canvasW: number, canvasH: number): Came
 
   const translateX = canvasW / 2 - (bbox.x + bbox.width / 2) * scale;
   const translateY = canvasH / 2 - (bbox.y + bbox.height / 2) * scale;
-
-  // DEBUG
-  console.log('[bboxToCamera] result', { scale, translateX, translateY });
-  // FIM DEBUG
 
   const cam = new Camera();
   cam.setTransform(scale, translateX, translateY);

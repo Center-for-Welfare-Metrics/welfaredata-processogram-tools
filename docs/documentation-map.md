@@ -35,6 +35,7 @@ When in doubt about which document to consult, start here.
 | [Issue #3 — Post-Phase-1 Themeable SVG](https://github.com/Center-for-Welfare-Metrics/welfaredata-processogram-tools/issues/3) | Light/dark mode pipeline, single SVG source, theming strategy, three-layer principle | Gabriel and Wladimir | 🗺️ roadmap | Planning theme support; understanding the separation of visual art, semantic structure, and interaction geometry | Phase 1 validation or immediate SVG fixes. Note: invisible hit-area geometry described in this issue is a future motor feature — not yet implemented and not a current instruction for Jean |
 | [WelfareData Processograms: Technical and Contributor Documentation](https://docs.google.com/document/d/1QAzknzhbXbeBaItjQh9yfjKKwChzqli8sgn5KxuhcRY/edit?usp=sharing) | Historical umbrella document — legacy links, old stack, AI prompts, contributor instructions | Historical reference only | ⚠️ legacy | Consulting the AI prompts for description generation (still valid conceptually) | Any technical SVG or architecture decision — information is outdated |
 
+**Preflight live version:** https://welfaredata-pre-flight.ulsyy6.easypanel.host/ — Jean can use this directly without downloading any file.
 ---
 
 ## Conflict resolution

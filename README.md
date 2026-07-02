@@ -118,6 +118,7 @@ Before delivering any processogram SVG, run it through the preflight checker.
 ```
 tools/svg-preflight.html
 ```
+**Live version:** https://welfaredata-pre-flight.ulsyy6.easypanel.host/
 
 1. Open `tools/svg-preflight.html` in any browser (double-click the file — no server needed).
 2. Drag the SVG onto the drop zone, or click to browse.

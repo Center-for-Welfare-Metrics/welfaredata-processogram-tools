@@ -128,8 +128,7 @@ structural problems in their SVG files that Jean needs to fix before they can pa
 ### The preflight tool
 
 To prevent these problems from recurring, Gabriel built a preflight checker
-(`tools/svg-preflight.html`) — a standalone tool that Jean opens in a browser,
-drops an SVG file onto, and immediately receives a report of any issues.
+(`tools/svg-preflight.html`, also available online at https://welfaredata-pre-flight.ulsyy6.easypanel.host/) — a tool that Jean opens in a browser,
 
 From June 2026 onward, every SVG must pass the preflight before being delivered.
 Issues marked as errors must be fixed. Issues marked as warnings must be explained.
